@@ -1,5 +1,5 @@
 import {KeyboardAction} from "../../Enums";
-import {remote} from "electron";
+// TODO: migrate remote -> electronAPI
 import {getAcceleratorForAction} from "../keyevents/Keybindings";
 import {ApplicationComponent} from "../ApplicationComponent";
 import {services} from "../../services";
@@ -16,7 +16,7 @@ export function buildMenuTemplate(
                 { role: "about" },
                 { type: "separator" },
                 { role: "hide" },
-                { role: "hideothers" },
+                { role: "hideOthers" },
                 { role: "unhide" },
                 { type: "separator" },
                 {
@@ -89,6 +89,19 @@ export function buildMenuTemplate(
                     accelerator: getAcceleratorForAction(KeyboardAction.toggleDeveloperTools),
                     click: () => {
                         browserWindow.webContents.toggleDevTools();
+                    },
+                },
+                { type: "separator" },
+                // #341 Toggle Menubar (Linux): Alt toggles menu bar visibility. Visible only on Linux, but accelerator Alt works cross-platform.
+                {
+                    label: "Toggle Menu Bar",
+                    accelerator: "Alt",
+                    // On macOS menu bar is always visible; on Linux/Win allow toggle. Keep visible for Linux per issue #341.
+                    visible: process.platform === "linux",
+                    click: () => {
+                        const isVisible = browserWindow.isMenuBarVisible();
+                        browserWindow.setAutoHideMenuBar(!isVisible);
+                        browserWindow.setMenuBarVisibility(!isVisible);
                     },
                 },
             ],
@@ -164,14 +177,14 @@ export function buildMenuTemplate(
                     label: "GitHub Repository",
                     click: () => {
                         /* tslint:disable:no-unused-expression */
-                        remote.shell.openExternal("http://l.rw.rw/upterm_repository");
+                        (window as any).electronAPI?.openExternal("http://l.rw.rw/upterm_repository");
                     },
                 },
                 {
                     label: "Leave Feedback",
                     click: () => {
                         /* tslint:disable:no-unused-expression */
-                        remote.shell.openExternal("http://l.rw.rw/upterm_leave_feedback");
+                        (window as any).electronAPI?.openExternal("http://l.rw.rw/upterm_leave_feedback");
                     },
                 },
             ],

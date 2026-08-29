@@ -8,16 +8,35 @@ process.env.COLORTERM = "truecolor";
 process.env.TERM = "xterm-256color";
 
 import {loadAliasesFromConfig} from "../shell/Aliases";
-const reactDOM = require("react-dom");
 import * as React from "react";
+import { createRoot } from "react-dom/client";
 import {ApplicationComponent} from "./ApplicationComponent";
 import {loadAllPlugins} from "../PluginManager";
 import {loadEnvironment} from "../shell/Environment";
 import {UserEvent, MouseEvent} from "../Interfaces";
-import {remote} from "electron";
-import {buildMenuTemplate} from "./menu/Menu";
 
-const browserWindow = remote.BrowserWindow.getAllWindows()[0];
+declare global {
+    interface Window {
+        electronAPI: {
+            quit: () => Promise<void>;
+            getVersion: () => Promise<string>;
+            openExternal: (url: string) => Promise<void>;
+            // #420 Window title propagation
+            setTitle?: (title: string) => Promise<void>;
+            setWindowTitle?: (title: string) => Promise<void>;
+            windowControls: {
+                minimize: () => Promise<void>;
+                maximize: () => Promise<void>;
+                close: () => Promise<void>;
+                toggleFullScreen: () => Promise<void>;
+                toggleDevTools: () => Promise<void>;
+                isMaximized: () => Promise<boolean>;
+            };
+            onChangeWorkingDirectory: (callback: (directory: string) => void) => void;
+        };
+        search: any;
+    }
+}
 
 document.addEventListener(
     "dragover",
@@ -36,28 +55,33 @@ async function main() {
 
     // FIXME: Remove loadAllPlugins after switching to Webpack (because all the files will be loaded at start anyway).
     await Promise.all([loadAllPlugins(), loadEnvironment(), loadAliasesFromConfig()]);
-    const application: ApplicationComponent = reactDOM.render(
-        <ApplicationComponent/>,
-        document.getElementById("react-entry-point"),
-    );
+    const container = document.getElementById("react-entry-point");
+    if (!container) {
+        throw new Error("react-entry-point not found");
+    }
+    const appRef = React.createRef<ApplicationComponent>();
+    createRoot(container).render(<ApplicationComponent ref={appRef} />);
 
-    const template = buildMenuTemplate(remote.app, browserWindow, application);
-    remote.Menu.setApplicationMenu(remote.Menu.buildFromTemplate(template));
+    // Application instance available via ref after mount; wait a tick for React 19 async mount
+    // Fallback to ref callback sync if already mounted
+    const getApplication = () => appRef.current as ApplicationComponent;
 
     const userEventHandler = (event: UserEvent) => handleUserEvent(
-        application,
+        getApplication(),
         window.search,
         event,
     );
 
     const mouseEventHandler = (event: MouseEvent) => handleMouseEvent(
-        application,
+        getApplication(),
         event,
     );
 
     document.body.addEventListener("keydown", userEventHandler, true);
     document.body.addEventListener("paste", userEventHandler, true);
     document.body.addEventListener("drop", mouseEventHandler, true);
+    // #1026 middle mouse paste support
+    document.body.addEventListener("mousedown", mouseEventHandler as any, true);
 
     require("../plugins/JobFinishedNotifications");
     require("../plugins/UpdateLastPresentWorkingDirectory");

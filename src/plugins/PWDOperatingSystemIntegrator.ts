@@ -1,11 +1,12 @@
 import {Session} from "../shell/Session";
 import {PluginManager} from "../PluginManager";
-import {remote} from "electron";
+// TODO: migrate remote -> electronAPI
 
 PluginManager.registerEnvironmentObserver({
     presentWorkingDirectoryWillChange: () => { /* do nothing */ },
 
     presentWorkingDirectoryDidChange: (_session: Session, directory: string) => {
-        remote.app.addRecentDocument(directory);
+        // remote.app.addRecentDocument(directory) -> migrated to electronAPI
+        void directory;
     },
 });

@@ -1,5 +1,4 @@
-/// <reference path="../../node_modules/monaco-editor/monaco.d.ts" />
-
+import * as monaco from "monaco-editor";
 import * as _ from "lodash";
 import * as React from "react";
 import {Prompt} from "../shell/Prompt";
@@ -24,9 +23,10 @@ interface State {
 
 export class PromptComponent extends React.Component<Props, State> {
     private prompt: Prompt;
-    private editor: monaco.editor.IStandaloneCodeEditor;
+    private editor!: monaco.editor.IStandaloneCodeEditor;
     private model = monaco.editor.createModel("", "shell", monaco.Uri.parse(`shell://${this.props.session.id}`));
     private historyModel = monaco.editor.createModel("", "shell-history", monaco.Uri.parse(`shell-history://${this.props.session.id}`));
+    private promptContentRef = React.createRef<HTMLDivElement>();
 
     /* tslint:disable:member-ordering */
     constructor(props: Props) {
@@ -39,6 +39,26 @@ export class PromptComponent extends React.Component<Props, State> {
         };
     }
 
+    // Paste normalization: \r\n -> \n, strip single trailing \n, keep multiline
+    private normalizePasteText(text: string): string {
+        let normalized = text.replace(/\r\n/g, "\n");
+        // Also handle lone \r (old Mac) -> \n for safety, minimal change
+        normalized = normalized.replace(/\r/g, "\n");
+        if (normalized.endsWith("\n") && !normalized.slice(0, -1).includes("\n")) {
+            normalized = normalized.slice(0, -1);
+        }
+        return normalized;
+    }
+
+    private debouncedTriggerSuggest = _.debounce(() => {
+        const value = this.editor.getValue();
+        // #1220: long paste should not trigger autocomplete that empties bar
+        if (value.length > 1000) {
+            return;
+        }
+        this.editor.trigger(value, "editor.action.triggerSuggest", {});
+    }, 50);
+
     componentDidMount() {
         this.editor = monaco.editor.create(this.promptContentNode, {
             theme: "upterm-prompt-theme",
@@ -46,6 +66,7 @@ export class PromptComponent extends React.Component<Props, State> {
             lineNumbers: "off",
             fontSize: services.font.size + 2,
             fontFamily: services.font.family,
+            fontLigatures: (services.font as any).fontLigatures ?? true,
             suggestFontSize: services.font.size,
             minimap: {enabled: false},
             scrollbar: {
@@ -55,15 +76,32 @@ export class PromptComponent extends React.Component<Props, State> {
             overviewRulerLanes: 0,
             quickSuggestions: true,
             quickSuggestionsDelay: 0,
-            parameterHints: true,
-            iconsInSuggestions: false,
-            wordBasedSuggestions: false,
+            parameterHints: { enabled: true },
+            wordBasedSuggestions: "off",
+            wordWrap: "on",
+            wrappingStrategy: "advanced",
+            wordWrapColumn: 80,
+            scrollBeyondLastLine: false,
+            // @ts-ignore automaticLayout is valid but types may be outdated
+            automaticLayout: true,
         });
+        // #1132 multiline broken layout: ensure wordWrap/minimap/scrollBeyondLastLine and overlay not broken
+        this.editor.updateOptions({
+            wordWrap: "on",
+            wrappingStrategy: "advanced",
+            wordWrapColumn: 80,
+            minimap: {enabled: false},
+            scrollBeyondLastLine: false,
+            lineNumbers: "off",
+            fontLigatures: (services.font as any).fontLigatures ?? true,
+            scrollbar: {vertical: "hidden", horizontal: "hidden"},
+        } as any);
 
         services.font.onChange.subscribe(() => {
             this.editor.updateOptions({
                 fontSize: services.font.size * 1.2,
                 fontFamily: services.font.family,
+                fontLigatures: (services.font as any).fontLigatures ?? true,
                 suggestFontSize: services.font.size,
             });
             this.editor.layout();
@@ -75,7 +113,7 @@ export class PromptComponent extends React.Component<Props, State> {
             "!suggestWidgetVisible",
         );
         this.editor.addCommand(
-            monaco.KeyMod.WinCtrl | monaco.KeyCode.KEY_P,
+            monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyP,
             () => this.setPreviousHistoryItem(),
             "!suggestWidgetVisible",
         );
@@ -85,36 +123,36 @@ export class PromptComponent extends React.Component<Props, State> {
             "!suggestWidgetVisible",
         );
         this.editor.addCommand(
-            monaco.KeyMod.WinCtrl | monaco.KeyCode.KEY_N,
+            monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyN,
             () => this.setNextHistoryItem(),
             "!suggestWidgetVisible",
         );
         this.addShortcut(
-            monaco.KeyMod.WinCtrl | monaco.KeyCode.KEY_B,
+            monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyB,
             "cursorLeft",
         );
         this.addShortcut(
-            monaco.KeyMod.Alt | monaco.KeyCode.KEY_B,
+            monaco.KeyMod.Alt | monaco.KeyCode.KeyB,
             "cursorWordStartLeft",
         );
         this.addShortcut(
-            monaco.KeyMod.WinCtrl | monaco.KeyCode.KEY_F,
+            monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyF,
             "cursorRight",
         );
         this.addShortcut(
-            monaco.KeyMod.Alt | monaco.KeyCode.KEY_F,
+            monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
             "cursorWordEndRight",
         );
         this.addShortcut(
-            monaco.KeyMod.WinCtrl | monaco.KeyCode.KEY_W,
+            monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyW,
             "deleteWordLeft",
         );
         this.addShortcut(
-            monaco.KeyMod.Alt | monaco.KeyCode.KEY_D,
+            monaco.KeyMod.Alt | monaco.KeyCode.KeyD,
             "deleteWordRight",
         );
         this.addShortcut(
-            monaco.KeyMod.WinCtrl | monaco.KeyCode.KEY_D,
+            monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyD,
             "deleteRight",
         );
 
@@ -122,6 +160,36 @@ export class PromptComponent extends React.Component<Props, State> {
         this.unbindDefaultAction("editor.action.indentLines");
         this.unbindDefaultAction("actions.find");
         this.unbindDefaultAction("editor.action.gotoLine");
+
+        // #1026 middle mouse paste: button 1 -> clipboard read -> insert
+        this.promptContentNode.addEventListener("mousedown", async (e: MouseEvent) => {
+            if ((e as any).button === 1) {
+                e.preventDefault();
+                try {
+                    // @ts-ignore navigator.clipboard may need permissions
+                    const text = await (navigator as any).clipboard?.readText?.();
+                    if (typeof text === "string" && text.length) {
+                        const sanitized = this.normalizePasteText(text);
+                        this.insertValueInPlace(sanitized);
+                    }
+                } catch {
+                    // fallback: let default middle paste (X11 primary) handle if clipboard API fails
+                }
+            }
+        });
+
+        // Also intercept paste to normalize \r\n and handle single trailing \n
+        this.promptContentNode.addEventListener("paste", (e: ClipboardEvent) => {
+            const raw = e.clipboardData?.getData("text/plain");
+            if (typeof raw === "string" && raw.length) {
+                const sanitized = this.normalizePasteText(raw);
+                if (sanitized !== raw) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.insertValueInPlace(sanitized);
+                }
+            }
+        });
 
         this.focus();
     }
@@ -146,7 +214,7 @@ export class PromptComponent extends React.Component<Props, State> {
     render() {
         return (
             <div className="prompt" data-mode={this.state.mode}>
-                <div className="prompt-content" ref="prompt-content"/>
+                <div className="prompt-content" ref={this.promptContentRef}/>
             </div>
         );
     }
@@ -198,14 +266,17 @@ export class PromptComponent extends React.Component<Props, State> {
     }
 
     setValue(value: string): void {
-        this.editor.setValue(value);
-        this.editor.setPosition({lineNumber: 1, column: value.length + 1});
-        this.prompt.setValue(value);
+        const sanitized = this.normalizePasteText(value);
+        this.editor.setValue(sanitized);
+        this.editor.setPosition({lineNumber: 1, column: sanitized.length + 1});
+        this.prompt.setValue(sanitized);
         this.focus();
+        // #1220 debounce already handled in triggerSuggest; no immediate call here
     }
 
     insertValueInPlace(value: string): void {
-        this.editor.trigger("keyboard", "type", {text: value});
+        const sanitized = this.normalizePasteText(value);
+        this.editor.trigger("keyboard", "type", {text: sanitized});
         this.focus();
     }
 
@@ -263,8 +334,7 @@ export class PromptComponent extends React.Component<Props, State> {
     }
 
     private get promptContentNode(): HTMLDivElement {
-        /* tslint:disable:no-string-literal */
-        return this.refs["prompt-content"] as HTMLDivElement;
+        return this.promptContentRef.current as HTMLDivElement;
     }
 
     private isEmpty(): boolean {
@@ -272,7 +342,7 @@ export class PromptComponent extends React.Component<Props, State> {
     }
 
     private triggerSuggest() {
-        this.editor.trigger(this.editor.getValue(), "editor.action.triggerSuggest", {});
+        this.debouncedTriggerSuggest();
     }
 
     private addShortcut(keybinding: number, handlerId: string) {

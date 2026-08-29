@@ -15,9 +15,13 @@ export const application = () => ({
     "--content-padding": `${contentPadding}px`,
     "--search-input-color": lighten(backgroundColor, 15),
     "--background-color": backgroundColor,
+    "--editor-background": backgroundColor,
+    "--editor-foreground": textColor,
     "--job-background-color": jobBackgroundColor,
     "--failed-job-background-color": failurize(jobBackgroundColor),
     "--text-color": textColor,
+    // fontLigatures CSS var for powerline fallback fonts (Fira Code, JetBrains Mono)
+    "--font-ligatures": (services.font as any).fontLigatures ? "'calt' 1, 'liga' 1" : "none",
 
     "--black-color": colors.black,
     "--red-color": colors.red,
@@ -29,6 +33,8 @@ export const application = () => ({
     "--cyan-color": colors.cyan,
 });
 
+// wordWrap & overlay: keep wordWrap "on" with wrappingStrategy "advanced" (see PromptComponent)
+// overlay widgets (suggestWidget) use absolute positioning – ensure parent .prompt has contain:layout but not overflow hidden
 export const charGroup = (attributes: Attributes) => {
     const styles: any = {
         color: colorValue(attributes.color, {isBright: attributes.brightness === Brightness.Bright}),

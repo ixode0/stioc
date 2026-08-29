@@ -13,11 +13,13 @@ export class SessionsService {
         const session = new Session();
         this.sessions.set(session.id, session);
 
-        Observable.fromEvent(session, "job-started").subscribe(
+        // @ts-ignore
+        Observable.fromEvent(session as any, "job-started").subscribe(
             () => services.jobs.onStart.next(session.lastJob!),
         );
 
-        Observable.fromEvent(session, "job-finished").subscribe(
+        // @ts-ignore
+        Observable.fromEvent(session as any, "job-finished").subscribe(
             () => services.jobs.onFinish.next(session.lastJob!),
         );
 

@@ -108,9 +108,9 @@ export class HistoryTrie {
 
     private getLongestNonAmbiguousPrefix(node: TrieNode, path: string[]): Continuation {
         if (node.children.size === 1) {
-            const key = node.children.keys().next().value;
-            path.push(key);
-            return this.getLongestNonAmbiguousPrefix(node.children.get(key)!, path);
+            const key = node.children.keys().next().value as string;
+            path.push(key!);
+            return this.getLongestNonAmbiguousPrefix(node.children.get(key!)!, path);
         } else {
             const continuation = getContinuation(node);
 

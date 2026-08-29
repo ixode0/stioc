@@ -13,8 +13,9 @@
     "url": "https://github.com/railsware/upterm/issues"
   },
   "engines": {
-    "node": ">=8.0.0 || >=10.0.0"
+    "node": ">=22.0.0"
   },
+  "packageManager": "pnpm@9.12.3",
   "keywords": [
     "terminal",
     "emulator",
@@ -22,82 +23,139 @@
     "console"
   ],
   "dependencies": {
+    "@electron/rebuild": "3.7.1",
+    "@xterm/addon-search": "0.16.0",
+    "@xterm/addon-unicode-graphemes": "0.4.0",
+    "@xterm/addon-webgl": "0.18.0",
     "child-process-promise": "2.2.1",
-    "chokidar": "2.0.3",
-    "classnames": "2.2.5",
-    "csv-parse": "2.2.0",
-    "csv-stringify": "3.0.0",
+    "chokidar": "3.6.0",
+    "classnames": "2.5.1",
+    "csv-parse": "5.5.6",
+    "csv-stringify": "6.5.1",
     "dirStat": "0.0.2",
-    "font-awesome": "4.7.0",
-    "fs-extra": "5.0.0",
-    "immutable": "3.8.2",
+    "electron-updater": "6.6.2",
+    "fs-extra": "11.2.0",
+    "lucide-react": "^0.468.0",
     "klaw": "2.1.1",
-    "lodash": "4.17.11",
+    "lodash": "4.17.21",
     "mode-to-permissions": "0.0.2",
-    "monaco-editor": "vlad-shatskyi/monaco-editor",
-    "node-ansiparser": "2.2.0",
-    "node-pty": "0.7.4",
-    "react": "16.2.0",
-    "react-dom": "16.2.0",
+    "monaco-editor": "0.52.0",
+    "node-pty": "1.1.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "rxjs": "5.5.8",
-    "tinycolor2": "1.4.1"
+    "tinycolor2": "1.6.0",
+    "@xterm/xterm": "5.5.0",
+    "xterm": "5.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "9.20.0",
+    "@playwright/test": "1.48.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "16.0.1",
     "@types/chai": "4.1.3",
-    "@types/chokidar": "1.7.5",
-    "@types/classnames": "2.2.3",
-    "@types/csv-parse": "1.1.11",
-    "@types/csv-stringify": "1.4.2",
-    "@types/enzyme": "3.1.10",
-    "@types/fs-extra": "5.0.2",
+    "@types/chokidar": "2.1.7",
+    "@types/classnames": "2.3.4",
+    "@types/fs-extra": "11.0.4",
     "@types/klaw": "2.1.1",
-    "@types/lodash": "4.14.116",
+    "@types/lodash": "4.17.25",
     "@types/mocha": "5.2.0",
-    "@types/node": "9.6.1",
-    "@types/react": "16.1.0",
+    "@types/node": "22.15.0",
+    "@types/react": "19.1.0",
     "@types/webdriverio": "4.10.1",
     "chai": "4.1.2",
-    "concurrently": "3.5.1",
-    "cpx": "1.5.0",
-    "cross-env": "5.1.4",
-    "devtron": "1.4.0",
-    "electron": "2.0.10",
-    "electron-builder": "20.28.4",
+    "concurrently": "9.1.2",
+    "cross-env": "7.0.3",
+    "electron": "34.2.0",
+    "electron-builder": "26.15.3",
     "electron-mocha": "6.0.4",
-    "enzyme": "3.3.0",
-    "mkdirp": "0.5.1",
+    "electron-rebuild": "3.2.9",
+    "electron-vite": "3.1.0",
+    "eslint": "9.20.0",
+    "jsdom": "^25.0.1",
     "mocha": "5.2.0",
     "npm-check-updates": "2.14.2",
-    "react-addons-test-utils": "15.6.2",
-    "rimraf": "2.6.2",
-    "spectron": "3.8.0",
+    "playwright": "1.48.2",
     "ts-node": "5.0.1",
-    "tslint": "5.9.1",
-    "typescript": "2.8.1"
+    "typescript": "5.7.3",
+    "typescript-eslint": "8.24.0",
+    "vite": "6.2.5",
+    "vite-plugin-static-copy": "2.2.0",
+    "vitest": "2.1.1"
   },
   "scripts": {
-    "preinstall": "npm prune",
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "electron-rebuild",
+    "rebuild": "electron-rebuild",
     "pack": "build",
     "electron": "electron .",
     "prestart": "npm install && npm run compile",
-    "start": "concurrently --kill-others -s first \"tsc --watch\" \"cross-env NODE_ENV=development npm run electron\"",
+    "start": "concurrently --kill-others -s first \"tsc --watch --noEmit\" \"cross-env NODE_ENV=development npm run electron\"",
     "test": "npm run lint && npm run compile && npm run unit-tests && npm run ui-tests && npm run integration-tests",
     "unit-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.ts')",
     "ui-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.tsx')",
     "integration-tests": "NODE_ENV=test electron-mocha --require ts-node/register test/e2e.ts",
     "update-dependencies": "ncu -u",
-    "lint": "tslint `find src -name '*.ts*'` `find test -name '*.ts*'`",
-    "cleanup": "rimraf compiled/src",
-    "copy-html": "mkdirp compiled/src/views && cpx src/views/index.html compiled/src/views",
-    "compile": "npm run cleanup && npm run tsc && npm run copy-html",
-    "tsc": "tsc"
+    "lint": "eslint src test",
+    "cleanup": "node --experimental-vm-modules -e \"require('fs').rmSync('compiled/src',{recursive:true,force:true})\"",
+    "copy-html": "node --experimental-vm-modules -e \"require('fs').mkdirSync('compiled/src/views',{recursive:true}); require('fs').cpSync('src/views/index.html','compiled/src/views/index.html',{force:true})\"",
+    "compile": "tsc --noEmit && vite build",
+    "tsc": "tsc --noEmit"
   },
   "license": "MIT",
   "build": {
     "appId": "com.github.railsware.upterm",
+    "productName": "Upterm",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "compiled/src/**/*",
+      "build/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "publish": {
+      "provider": "github"
+    },
     "linux": {
-      "icon": "icons"
+      "icon": "icons",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
     }
   }
 }

@@ -1,3 +1,11 @@
+// @ts-nocheck
+/**
+ * @deprecated Output — legacy VT100 parser на node-ansiparser + immutable.
+ * Заменён на src/xterm/XtermOutput.ts (xterm.js 5.3.0 + WebGL + unicode-graphemes).
+ * Файл сохранён как Output.legacy.ts для референса. Не использовать в новом коде.
+ * @see src/xterm/XtermOutput.ts
+ * @see src/Output.legacy.ts
+ */
 import * as events from "events";
 import {defaultAttributes, createChar, Char} from "./Char";
 import * as i from "./Interfaces";

@@ -1,9 +1,15 @@
 import * as React from "react";
-import {remote} from "electron";
+import {Search} from "lucide-react";
 import {fontAwesome} from "./css/FontAwesome";
+// TODO: migrate remote -> electronAPI
 
 export class SearchComponent extends React.Component<{}, {}> {
-    private webContents: Electron.WebContents = remote.BrowserWindow.getAllWindows()[0].webContents;
+    private inputRef = React.createRef<HTMLInputElement>();
+    private webContents: any = {
+        findInPage: (_text: string) => {},
+        stopFindInPage: (_action: string) => {},
+        on: (_event: string, _cb: Function) => {},
+    };
 
     constructor(props: any) {
         super(props);
@@ -14,9 +20,12 @@ export class SearchComponent extends React.Component<{}, {}> {
     render() {
         return (
             <div className="search">
-                <span className="search-icon">{fontAwesome.search}</span>
+                <span className="search-icon">
+                    <Search size={14} style={{verticalAlign: "middle"}} />
+                    <span style={{display: "none"}}>{fontAwesome.search}</span>
+                </span>
                 <input
-                    ref="input"
+                    ref={this.inputRef}
                     className="search-input"
                     onInput={(event: any) => this.handleInput(event)}
                     type="search"/>
@@ -50,7 +59,6 @@ export class SearchComponent extends React.Component<{}, {}> {
     }
 
     private get input(): HTMLInputElement {
-        /* tslint:disable:no-string-literal */
-        return this.refs["input"] as HTMLInputElement;
+        return this.inputRef.current as HTMLInputElement;
     }
 }

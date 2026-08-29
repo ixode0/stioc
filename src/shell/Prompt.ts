@@ -5,7 +5,7 @@ import {Session} from "./Session";
 
 export class Prompt extends events.EventEmitter {
     private _value = "";
-    private _expandedAst: CompleteCommand;
+    private _expandedAst!: CompleteCommand;
 
     constructor(private session: Session) {
         super();

@@ -4,7 +4,9 @@ import {ReactElement} from "react";
 import {Job} from "./shell/Job";
 import {Session} from "./shell/Session";
 import {Suggestion} from "./plugins/completion_utils/Common";
-import {Output} from "./Output";
+import type {XtermOutput} from "./xterm/XtermOutput";
+// legacy re-export for compat
+import type {Output} from "./Output.legacy";
 import {Environment} from "./shell/Environment";
 import {OrderedSet} from "./utils/OrderedSet";
 import {Argument} from "./shell/Parser";
@@ -52,10 +54,10 @@ export interface EnvironmentObserverPlugin {
 }
 
 export interface TerminalLikeDevice {
-    output: Output;
+    output: XtermOutput | Output;
     write: (input: string | KeyboardEvent) => void;
 }
 
 export type UserEvent = KeyboardEvent | ClipboardEvent;
 
-export type MouseEvent = DragEvent;
+export type MouseEvent = DragEvent | globalThis.MouseEvent;

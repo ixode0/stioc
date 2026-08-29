@@ -8,7 +8,7 @@ const buttonStyles = (color: string) => ({
   borderWidth: "1px",
   padding: "2px",
   color: color,
-  WebkitUserSelect: "none",
+  WebkitUserSelect: "none" as any,
   fontSize: "10px",
   margin: "4px",
   cursor: "pointer",

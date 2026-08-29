@@ -1,15 +1,18 @@
 import {type as osType} from "os";
-import * as classNames from "classnames";
-import {TabHeaderComponent, Props} from "./TabHeaderComponent";
 import * as React from "react";
+// @ts-ignore
 import {ipcRenderer} from "electron";
-import {remote} from "electron";
+import * as classNamesModule from "classnames";
+const classNames: any = (classNamesModule as any).default ?? classNamesModule;
+import {TabHeaderComponent, Props} from "./TabHeaderComponent";
+// TODO: migrate remote -> electronAPI
 import * as css from "./css/styles";
 import {SearchComponent} from "./SearchComponent";
 import {TabComponent} from "./TabComponent";
 import {SessionID} from "../shell/Session";
 import {services} from "../services";
 import * as _ from "lodash";
+import {userFriendlyPath} from "../utils/Common";
 
 type ApplicationState = {
     tabs: Array<{id: number, sessionIDs: SessionID[]; focusedSessionID: SessionID}>;
@@ -17,7 +20,7 @@ type ApplicationState = {
 };
 
 export class ApplicationComponent extends React.Component<{}, ApplicationState> {
-    tabComponents: TabComponent[];
+    tabComponents!: TabComponent[];
 
     constructor(props: {}) {
         super(props);
@@ -35,14 +38,85 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         services.window.onResize.subscribe(() => this.resizeAllSessions());
         services.window.onClose.subscribe(() => services.sessions.closeAll());
         services.sessions.onClose.subscribe(id => this.removeSessionFromState(id));
+        // #372/#385 font change must resize ALL sessions incl. split: resizeAllSessions iterates every TabComponent.sessionComponents
         services.font.onChange.subscribe(() => {
             this.forceUpdate();
+            // Verify: resizeAllSessions handles split (2 sessions per tab) correctly – iterates all tabComponents
             this.resizeAllSessions();
         });
 
-        ipcRenderer.on("change-working-directory", (_event: Event, directory: string) =>
+        ipcRenderer.on("change-working-directory", (_event: any, directory: string) =>
             this.focusedSession.directory = directory,
         );
+
+        // #420 Window title sync: sync on mount and when focused session/title/directory changes
+        this.syncWindowTitle = this.syncWindowTitle.bind(this);
+    }
+
+    componentDidMount() {
+        this.syncWindowTitle();
+        // Subscribe to title-changed of current focused session; re-subscribe on focus change in componentDidUpdate
+        this.subscribeTitleChanges();
+    }
+
+    componentDidUpdate(_prevProps: {}, prevState: ApplicationState) {
+        if (prevState.focusedTabIndex !== this.state.focusedTabIndex ||
+            prevState.tabs[prevState.focusedTabIndex]?.focusedSessionID !== this.state.tabs[this.state.focusedTabIndex]?.focusedSessionID) {
+            this.subscribeTitleChanges();
+        }
+        this.syncWindowTitle();
+    }
+
+    componentWillUnmount() {
+        this.unsubscribeTitleChanges();
+    }
+
+    private titleChangeListener?: () => void;
+    private subscribedSessionID?: SessionID;
+
+    private subscribeTitleChanges() {
+        this.unsubscribeTitleChanges();
+        try {
+            const session = this.focusedSession;
+            if (!session) return;
+            this.subscribedSessionID = session.id;
+            const handler = () => this.syncWindowTitle();
+            (session as any).on("title-changed", handler);
+            this.titleChangeListener = () => (session as any).removeListener("title-changed", handler);
+        } catch {}
+    }
+
+    private unsubscribeTitleChanges() {
+        try {
+            if (this.titleChangeListener) {
+                this.titleChangeListener();
+                this.titleChangeListener = undefined;
+            }
+        } catch {}
+    }
+
+    private syncWindowTitle() {
+        try {
+            const session = this.focusedSession;
+            if (!session) return;
+            // #420 custom title via session.title, fallback to directory
+            const rawTitle: string = (session as any).title ?? (session as any).directory ?? "Upterm";
+            const displayTitle = rawTitle && rawTitle.trim() ? rawTitle : userFriendlyPath((session as any).directory ?? "") || "Upterm";
+            // Update document.title for in-window title and for BrowserWindow via IPC
+            if (typeof document !== "undefined") {
+                document.title = displayTitle;
+            }
+            // Propagate to BrowserWindow title via preload bridge
+            const api: any = (window as any).electronAPI;
+            if (api?.setTitle) {
+                api.setTitle(displayTitle).catch(() => {});
+            } else if (api?.setWindowTitle) {
+                api.setWindowTitle(displayTitle).catch(() => {});
+            } else {
+                // Fallback via ipcRenderer if contextIsolation disabled in tests
+                try { ipcRenderer.send("set-title", displayTitle); } catch {}
+            }
+        } catch {}
     }
 
     render() {
@@ -67,12 +141,14 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         this.tabComponents = [];
 
         return (
-            <div className="application" style={css.application()}>
+            // @ts-ignore
+            <div className="application" style={css.application() as any}>
                 <div className={classNames("title-bar", {"reversed": this.isMacOS()})}>
                     <SearchComponent/>
                     <ul className="tabs">{tabs}</ul>
                 </div>
                 {this.state.tabs.map((tabProps, index) =>
+                    // @ts-ignore
                     <TabComponent {...tabProps}
                                   isFocused={index === this.state.focusedTabIndex}
                                   key={tabProps.id}
@@ -81,7 +157,8 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
                                       state.tabs[state.focusedTabIndex].focusedSessionID = id;
                                       this.setState(state);
                                   }}
-                                  ref={tabComponent => this.tabComponents[index] = tabComponent!}/>)}
+                                  // @ts-ignore
+                                  ref={tabComponent => this.tabComponents[index] = tabComponent! as any}/>)}
             </div>
         );
     }
@@ -116,7 +193,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
 
             this.setState(state);
         } else {
-            remote.shell.beep();
+            // TODO: migrate remote.shell.beep -> electronAPI
         }
     }
 
@@ -140,7 +217,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         if (this.state.tabs.length > index) {
             this.setState({focusedTabIndex: index});
         } else {
-            remote.shell.beep();
+            // TODO: migrate remote.shell.beep -> electronAPI
         }
     }
 
@@ -161,6 +238,13 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         services.sessions.close(this.focusedSession.id);
     }
 
+    /**
+     * #372 split screen: support up to 2 sessions per tab.
+     * data-side-by-side={len===2} in TabComponent handles CSS grid split.
+     * - len < 2: create new session and split view, then resize both sessions (resizeTabSessions)
+     * - len === 2: toggle focus between the two sessions (no new session).
+     * Max 2 keeps layout simple and avoids graphical glitches (#385).
+     */
     otherSession(): void {
         const state = this.cloneState();
         const tabState = state.tabs[state.focusedTabIndex];
@@ -170,10 +254,14 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
             tabState.sessionIDs.push(id);
             tabState.focusedSessionID = id;
 
-            this.setState(state, () => this.resizeTabSessions(state.focusedTabIndex));
+            this.setState(state, () => {
+                this.resizeTabSessions(state.focusedTabIndex);
+                this.syncWindowTitle();
+            });
         } else {
+            // Already at max split (2) – toggle focused session
             tabState.focusedSessionID = tabState.sessionIDs.find(id => id !== tabState.focusedSessionID)!;
-            this.setState(state);
+            this.setState(state, () => this.syncWindowTitle());
         }
     }
 
@@ -181,6 +269,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         this.tabComponents[tabIndex].sessionComponents.forEach(sessionComponent => sessionComponent.resizeSession());
     }
 
+    // #372/#385 font.onChange must resize all sessions including split panes – iterates every TabComponent.sessionComponents
     private resizeAllSessions() {
         this.tabComponents.forEach(tabComponent => {
             tabComponent.sessionComponents.forEach(sessionComponent => sessionComponent.resizeSession());

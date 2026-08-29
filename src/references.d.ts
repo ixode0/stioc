@@ -5,5 +5,3 @@
 /// <reference path="../typings/child-process-promise.d.ts" />
 /// <reference path="../typings/uuid.d.ts" />
 /// <reference path="../typings/dirStat.d.ts" />
-
-/// <reference path="../node_modules/immutable/dist/immutable.d.ts" />

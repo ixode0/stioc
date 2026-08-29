@@ -1,35 +1,12 @@
-export function requireMonaco(callback: () => void) {
-    const g = (global as any);
-    const nodeRequire = g.require;
+import * as monaco from "monaco-editor";
+import "monaco-editor/esm/vs/editor/editor.api";
 
-    const loaderScript = document.createElement("script");
-    loaderScript.type = "text/javascript";
-    loaderScript.src = "../../../node_modules/monaco-editor/min/vs/loader.js";
-
-    loaderScript.addEventListener("load", () => {
-        const amdRequire = g.require;
-        g.require = nodeRequire;
-        // require node modules before loader.js comes in
-        const path = require("path");
-
-        function uriFromPath(_path: string) {
-            let pathName = path.resolve(_path).replace(/\\/g, "/");
-            if (pathName.length > 0 && pathName.charAt(0) !== "/") {
-                pathName = "/" + pathName;
-            }
-            return encodeURI("file://" + pathName);
-        }
-
-        amdRequire.config({
-            baseUrl: uriFromPath(path.join(__dirname, "../../../node_modules/monaco-editor/dev")),
-        });
-        // workaround monaco-css not understanding the environment
-        (self as any).module = undefined;
-        // workaround monaco-typescript not understanding the environment
-        (self as any).process.browser = true;
-        amdRequire(["vs/editor/editor.main"], callback);
-
-        // window.require(["vs/editor/editor.main"], () => require("./Main"));
-    });
-    document.body.appendChild(loaderScript);
+export function requireMonaco(callback: () => void): void {
+    // Monaco is now loaded via ESM imports above; no AMD loader needed.
+    // Keep the callback API for backwards compatibility.
+    if (typeof callback === "function") {
+        callback();
+    }
+    // Ensure monaco is referenced so imports are not tree-shaken away
+    void monaco;
 }

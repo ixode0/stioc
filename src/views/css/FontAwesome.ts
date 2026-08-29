@@ -1,3 +1,8 @@
+/**
+ * @deprecated font-awesome 4.7 is deprecated – use lucide-react instead (see lucide icon components).
+ * This map is kept for backward compatibility / legacy unicode fallback.
+ * New code should import { Search, X, Wand2, ... } from "lucide-react".
+ */
 export const fontAwesome = {
     adjust: "\uf042",
     adn: "\uf170",

@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.15.0
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Rebuild native modules
+        run: pnpm rebuild
+        # alternative: pnpm exec electron-rebuild
+
+      - name: Typecheck
+        run: pnpm run tsc
+        # tsc --noEmit
+
+      - name: Vite build
+        run: pnpm exec vite build
+        # compile = tsc + vite build ; vite uses src/main/Main.ts -> compiled/src
+
+      - name: Compile (tsc + vite)
+        run: pnpm run compile
+
+      - name: Pack (electron-builder --dir, skip publish)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm run pack -- --dir
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload dist artifacts (linux only)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: ignore

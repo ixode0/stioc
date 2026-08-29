@@ -6,6 +6,7 @@
         <title>Upterm</title>
         <style>
             @import url('https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400i,700');
+            @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
             ::selection {
                 background: rgba(255, 255, 125, 0.99);
                 color: #032764;
@@ -33,9 +34,17 @@
                 margin: 0;
             }
 
+            /* lucide-react replaces font-awesome 4.7: icons are SVG via React, no font file required */
+            /* Keep FontAwesome as optional fallback for legacy unicode icons (prettify/search/close) */
             @font-face {
                 font-family: "FontAwesome";
-                src: url(../../../node_modules/font-awesome/fonts/fontawesome-webfont.ttf) format("truetype");
+                src: local("FontAwesome"), local("Font Awesome 5 Free");
+                font-display: swap;
+            }
+            /* lucide icon sizing – SVG handles its own font */
+            .lucide {
+                vertical-align: middle;
+                display: inline-block;
             }
 
             @keyframes progress-bar-stripes {
@@ -118,6 +127,16 @@
 
             .title-bar.reversed .tabs {
                 order: 2;
+            }
+
+            /* #1305 Native window controls macOS hidden titleBarStyle: traffic lights overlay */
+            /* BrowserWindow titleBarStyle hiddenInset (macOS) puts traffic lights over title-bar; reversed class already swaps order, add left inset so tabs don't overlap controls */
+            .title-bar.reversed {
+                padding-left: 78px; /* macOS hiddenInset traffic lights width */
+            }
+            /* Electron hidden titleBarStyle: ensure drag region remains and window controls are visible */
+            .title-bar {
+                /* already -webkit-app-region: drag; keep tabs draggable but inputs no-drag */
             }
 
             .tab-header {
@@ -296,6 +315,21 @@
             .output {
                 white-space: pre-wrap;
                 position: relative;
+                /* #385 wordWrap: xterm handles wrapping, but ensure CSS word-wrap for fallback; contain prevents split overlap */
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+
+            /* #385 Graphical glitch split: xterm must not overlap split panes – contain layout already on .session, add strict contain for output */
+            .output.xterm-output {
+                contain: layout;
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+            }
+            .sessions[data-side-by-side=true] .session {
+                min-width: 0; /* prevent grid blowout */
+                contain: layout;
             }
 
             .output[data-buffer-type=normal] {

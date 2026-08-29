@@ -10,7 +10,7 @@ type Props = {
 };
 
 export class TabComponent extends React.Component<Props, {}> {
-    sessionComponents: SessionComponent[];
+    sessionComponents!: SessionComponent[];
     focusedSessionComponent: SessionComponent | undefined;
 
     render() {
@@ -44,6 +44,8 @@ export class TabComponent extends React.Component<Props, {}> {
 
         return (
             <div className="tab" data-focused={this.props.isFocused}>
+                {/* #372 split screen: side-by-side when exactly 2 sessions; CSS grid uses data-side-by-side=true -> 1fr 1fr */}
+                {/* #385 contain:layout on .session prevents xterm overlap when split */}
                 <div className="sessions" data-side-by-side={this.props.sessionIDs.length === 2}>
                     {sessionComponents}
                 </div>

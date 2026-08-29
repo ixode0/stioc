@@ -1,6 +1,6 @@
 import {Job} from "./Job";
 import {existsSync, statSync} from "fs";
-import {homeDirectory, pluralize, resolveDirectory, resolveFile, mapObject} from "../utils/Common";
+import {error, homeDirectory, pluralize, resolveDirectory, resolveFile, mapObject} from "../utils/Common";
 import {readFileSync} from "fs";
 import {EOL} from "os";
 import {Session} from "./Session";
@@ -9,23 +9,43 @@ import {parseAlias} from "./Aliases";
 import {stringLiteralValue} from "./Scanner";
 
 const executors: Dictionary<(i: Job, a: string[]) => void> = {
+    // #462 cd does not work, #1191 Can't change directory, #1290 trailing slash
     cd: (job: Job, args: string[]): void => {
         let fullPath: string;
 
         if (!args.length) {
+            // cd without args -> homeDirectory (#462)
             fullPath = homeDirectory;
         } else {
             const enteredPath = args[0];
 
             if (isHistoricalDirectory(enteredPath)) {
+                // cd - / cd -N -> previous dirs via historicalPresentDirectoriesStack
                 fullPath = expandHistoricalDirectory(enteredPath, job.session.historicalPresentDirectoriesStack);
             } else {
-                fullPath = job.environment.cdpath
-                    .map(path => resolveDirectory(path, enteredPath))
+                // cdpath resolution with error logging if resolveDirectory fails
+                const candidates: string[] = [];
+                for (const base of job.environment.cdpath) {
+                    try {
+                        const resolved = resolveDirectory(base, enteredPath);
+                        candidates.push(resolved);
+                    } catch (e) {
+                        error(`cd: failed to resolve "${enteredPath}" against CDPATH "${base}":`, e);
+                    }
+                }
+                fullPath = candidates
                     .filter(resolved => existsSync(resolved))
-                    .filter(resolved => statSync(resolved).isDirectory())[0];
+                    .filter(resolved => {
+                        try {
+                            return statSync(resolved).isDirectory();
+                        } catch (e) {
+                            error(`cd: stat failed for "${resolved}":`, e);
+                            return false;
+                        }
+                    })[0];
 
                 if (!fullPath) {
+                    error(`cd: directory "${enteredPath}" not found in CDPATH`, job.environment.cdpath);
                     throw new Error(`The directory "${enteredPath}" doesn't exist.`);
                 }
             }
@@ -39,21 +59,52 @@ const executors: Dictionary<(i: Job, a: string[]) => void> = {
     exit: (job: Job, _args: string[]): void => {
         job.session.close();
     },
+    // #597 Export PATH – ensure quoted values are unwrapped and env updated for io.executablesInPaths
     export: (job: Job, args: string[]): void => {
         if (args.length === 0) {
             job.output.write(job.environment.map((key, value) => `${key}=${value}`).join("\r\n"));
         } else {
             args.forEach(argument => {
-                const firstEqualIndex = argument.indexOf("=");
-                const key = argument.slice(0, firstEqualIndex);
-                const value = argument.slice(firstEqualIndex + 1);
-
-                job.session.environment.set(key, value);
+                try {
+                    const firstEqualIndex = argument.indexOf("=");
+                    // `export VAR` without value – no-op, keep existing env (#597)
+                    if (firstEqualIndex === -1) {
+                        return;
+                    }
+                    const key = argument.slice(0, firstEqualIndex).trim();
+                    const rawValue = argument.slice(firstEqualIndex + 1);
+                    if (!key) {
+                        error(`export: invalid argument "${argument}"`);
+                        return;
+                    }
+                    // Try to unwrap quotes via stringLiteralValue, fallback to raw (handles $VAR, colons)
+                    let value: string;
+                    try {
+                        const parsed = stringLiteralValue(rawValue);
+                        value = parsed !== undefined ? parsed : rawValue;
+                    } catch {
+                        value = rawValue;
+                    }
+                    // Strip surrounding quotes if stringLiteralValue returned undefined for $ expansions
+                    if (value === rawValue) {
+                        // Remove only outer quotes, keep inner content intact
+                        const m = /^(["'])(.*)\1$/.exec(value);
+                        if (m) {
+                            value = m[2];
+                        }
+                    }
+                    job.session.environment.set(key, value);
+                } catch (e) {
+                    error(`export: failed to set "${argument}":`, e);
+                }
             });
         }
     },
-    // FIXME: make the implementation more reliable.
+    // #1215 source breaks, #94 virtualenv – robust source with per-line error skipping
     source: (job: Job, args: string[]): void => {
+        if (!args[0]) {
+            throw new Error("source: missing file argument");
+        }
         sourceFile(job.session, args[0]);
     },
     alias: (job: Job, args: string[]): void => {
@@ -85,17 +136,111 @@ const executors: Dictionary<(i: Job, a: string[]) => void> = {
     },
 };
 
-export function sourceFile(session: Session, fileName: string) {
-    const content = readFileSync(resolveFile(session.directory, fileName)).toString();
+export function sourceFile(session: Session, fileName: string): void {
+    let resolved: string;
+    try {
+        resolved = resolveFile(session.directory, fileName);
+    } catch (e) {
+        error(`source: failed to resolve "${fileName}" against "${session.directory}":`, e);
+        throw new Error(`Cannot resolve file "${fileName}": ${e instanceof Error ? e.message : String(e)}`);
+    }
 
-    content.split(EOL).forEach(line => {
-        if (line.startsWith("export ")) {
-            const [variableName, variableValueLiteral] = line.split(" ")[1].split("=");
+    let content: string;
+    try {
+        content = readFileSync(resolved).toString();
+    } catch (e) {
+        error(`source: failed to read "${resolved}":`, e);
+        throw new Error(`Cannot read file "${resolved}": ${e instanceof Error ? e.message : String(e)}`);
+    }
 
-            const variableValue = stringLiteralValue(variableValueLiteral);
-            if (variableValue) {
+    // Use /\r?\n/ instead of EOL to handle files with mixed LF/CRLF (e.g. ~/.zshrc) – #1215
+    content.split(/\r?\n/).forEach(rawLine => {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) {
+            return;
+        }
+        try {
+            // 1) export VAR=val  (also `export VAR` without value)
+            if (line.startsWith("export ")) {
+                const exportBody = line.slice("export ".length).trim();
+                if (!exportBody) {
+                    return;
+                }
+                const eqIdx = exportBody.indexOf("=");
+                if (eqIdx === -1) {
+                    // `export VAR` form – keep existing env value, do not clear (#1215)
+                    return;
+                }
+                const variableName = exportBody.slice(0, eqIdx).trim();
+                const variableValueLiteral = exportBody.slice(eqIdx + 1).trim();
+                if (!variableName) {
+                    return;
+                }
+                let variableValue: string | undefined;
+                try {
+                    variableValue = stringLiteralValue(variableValueLiteral);
+                } catch {
+                    variableValue = undefined;
+                }
+                if (variableValue === undefined) {
+                    // Fallback: strip outer quotes, preserve $VAR / colons for PATH (#94, #597)
+                    // Handles cases where Scanner Word regex lacks '$'
+                    const m = /^(["'])(.*)\1$/.exec(variableValueLiteral);
+                    variableValue = m ? m[2] : variableValueLiteral;
+                }
                 session.environment.set(variableName, variableValue);
+                // #94 virtualenv: PATH / VIRTUAL_ENV / PS1 changes propagate via Environment;
+                // aliases/prompt observers will see updated env on next prompt
+                return;
             }
+
+            // 2) alias definitions inside sourced files (e.g. venv activate may define pydoc)
+            if (line.startsWith("alias ")) {
+                try {
+                    const parsed = parseAlias(line);
+                    session.aliases.add(parsed.name, parsed.value);
+                } catch (e) {
+                    error(`source: failed to parse alias line "${rawLine}":`, e);
+                }
+                return;
+            }
+
+            // 3) bare assignment VAR=val (virtualenv activate does VIRTUAL_ENV="..." then export)
+            if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(line)) {
+                const eqIdx = line.indexOf("=");
+                const variableName = line.slice(0, eqIdx).trim();
+                const rawVal = line.slice(eqIdx + 1).trim();
+                if (!variableName) {
+                    return;
+                }
+                let value: string | undefined;
+                try {
+                    value = stringLiteralValue(rawVal);
+                } catch {
+                    value = undefined;
+                }
+                if (value === undefined) {
+                    const m = /^(["'])(.*)\1$/.exec(rawVal);
+                    value = m ? m[2] : rawVal;
+                }
+                session.environment.set(variableName, value);
+                return;
+            }
+
+            // 4) Fallback: try alias parse for lines like `alias ll='ls -la'` without prefix handling
+            // Silent skip on failure – per-line errors must not break whole file (#1215)
+            try {
+                const parsed = parseAlias(line);
+                // Heuristic: only add if parseAlias succeeded and line contains '='
+                if (line.includes("=")) {
+                    session.aliases.add(parsed.name, parsed.value);
+                }
+            } catch {
+                // Ignore non-alias / non-export lines (functions, conditions, etc.)
+            }
+        } catch (e) {
+            // Per-line try/catch – skip erroneous lines with log instead of breaking (#1215)
+            error(`source: failed to parse line "${rawLine}":`, e);
         }
     });
 }

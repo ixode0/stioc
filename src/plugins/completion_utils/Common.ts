@@ -1,3 +1,4 @@
+import * as monaco from "monaco-editor";
 import {directoryName, escapeFilePath, io, resolveDirectory, userFriendlyPath} from "../../utils/Common";
 import {AutocompletionContext, AutocompletionProvider, FileInfo} from "../../Interfaces";
 import {combine} from "./Combine";
@@ -44,7 +45,7 @@ export interface Suggestion {
      * this completion. When `falsy` the [label](#CompletionItem.label)
      * is used.
      */
-    insertText?: string | monaco.languages.SnippetString;
+    insertText?: string;
     /**
      * A range of text that should be replaced by this completion item.
      *
@@ -54,7 +55,7 @@ export interface Suggestion {
      * *Note:* The range must be a [single line](#Range.isSingleLine) and it must
      * [contain](#Range.contains) the position at which completion has been [requested](#CompletionItemProvider.provideCompletionItems).
      */
-    range?: monaco.Range;
+    range?: monaco.IRange;
     /**
      * @deprecated **Deprecated** in favor of `CompletionItem.insertText` and `CompletionItem.range`.
      *
@@ -109,7 +110,7 @@ const filesSuggestionsProvider =
         (context: AutocompletionContext, directory = context.environment.pwd): Promise<Suggestion[]> =>
             filesSuggestions(filter)(context.argument.value, directory);
 
-export const executableFilesSuggestions = filesSuggestions(info => info.stat.isFile() && modeToPermissions(info.stat.mode).execute.owner);
+export const executableFilesSuggestions = filesSuggestions(info => info.stat.isFile() && (modeToPermissions as any)(info.stat.mode).execute.owner);
 export const anyFilesSuggestions = filesSuggestions(() => true);
 export const anyFilesSuggestionsProvider = unique(filesSuggestionsProvider(() => true));
 export const directoriesSuggestions = filesSuggestions(info => info.stat.isDirectory() || info.stat.isSymbolicLink());

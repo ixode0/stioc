@@ -1,5 +1,6 @@
 /* tslint:disable:no-unused-variable */
 import * as React from "react";
+import {X} from "lucide-react";
 import {fontAwesome} from "./css/FontAwesome";
 
 export interface Props {
@@ -18,7 +19,8 @@ export class TabHeaderComponent extends React.Component<Props, {}> {
 
                 <span className="close-button"
                       onClick={this.props.closeHandler}>
-                    {fontAwesome.times}
+                    <X size={12} style={{verticalAlign: "middle"}} />
+                    <span style={{display: "none"}}>{fontAwesome.times}</span>
                 </span>
 
                 <span>⌘{this.props.position}</span>

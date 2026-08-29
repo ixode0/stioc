@@ -6,7 +6,7 @@ import {JobComponent} from "./JobComponent";
 import * as css from "./css/styles";
 import {PromptComponent} from "./PromptComponent";
 import {userFriendlyPath} from "../utils/Common";
-import {shell} from "electron";
+// TODO: migrate remote -> electronAPI: shell moved to window.electronAPI
 import {services} from "../services/index";
 import {colors} from "./css/colors";
 import {Subscription} from "rxjs/Subscription";
@@ -19,7 +19,9 @@ interface Props {
 
 export class SessionComponent extends React.Component<Props, {}> {
     RENDER_JOBS_COUNT = 10;
-    promptComponent: PromptComponent;
+    promptComponent!: PromptComponent;
+    private sessionDivRef = React.createRef<HTMLDivElement>();
+    private footerDivRef = React.createRef<HTMLDivElement>();
 
     constructor(props: Props) {
         super(props);
@@ -43,19 +45,20 @@ export class SessionComponent extends React.Component<Props, {}> {
         return (
             <div className="session"
                  data-status={this.status}
-                 ref="session"
+                 ref={this.sessionDivRef}
                  onClick={this.handleClick.bind(this)}>
 
                 <div className="jobs">
                     {jobs}
                 </div>
                 {this.props.isFocused ? null : <div className="shutter"/>}
+                {/* @ts-ignore */}
                 <PromptComponent
-                    ref={component => this.promptComponent = component!}
+                    ref={(component: any) => { this.promptComponent = component!; }}
                     session={this.session}
                     isFocused={this.props.isFocused}
                 />
-                <div className="footer" ref="footer">
+                <div className="footer" ref={this.footerDivRef}>
                     <span className="present-directory">{userFriendlyPath(this.session.directory)}</span>
                     <GitStatusComponent directory={this.session.directory}/>
                     <ReleaseComponent/>
@@ -64,6 +67,7 @@ export class SessionComponent extends React.Component<Props, {}> {
         );
     }
 
+    // #372/#385 resizeSession called via ApplicationComponent.font.onChange -> resizeAllSessions for split; also on window resize
     resizeSession(): void {
         this.session.dimensions = {
             columns: Math.floor(this.size.width / services.font.letterWidth),
@@ -81,11 +85,11 @@ export class SessionComponent extends React.Component<Props, {}> {
     }
 
     private get sessionRef() {
-        return this.refs.session as HTMLDivElement | undefined;
+        return this.sessionDivRef.current as HTMLDivElement | undefined;
     }
 
     private get footerRef() {
-        return this.refs.footer as HTMLDivElement | undefined;
+        return this.footerDivRef.current as HTMLDivElement | undefined;
     }
 
     private handleClick() {
@@ -113,7 +117,7 @@ export class SessionComponent extends React.Component<Props, {}> {
 type GitStatusProps = { directory: string };
 
 class GitStatusComponent extends React.Component<GitStatusProps, GitState> {
-    private subscription: Subscription;
+    private subscription!: Subscription;
 
     constructor(props: GitStatusProps) {
         super(props);
@@ -127,10 +131,10 @@ class GitStatusComponent extends React.Component<GitStatusProps, GitState> {
         this.subscribe(this.props.directory);
     }
 
-    componentWillUpdate(nextProps: GitStatusProps) {
-        if (this.props.directory !== nextProps.directory) {
+    componentDidUpdate(prevProps: GitStatusProps) {
+        if (prevProps.directory !== this.props.directory) {
             this.subscription.unsubscribe();
-            this.subscribe(nextProps.directory);
+            this.subscribe(this.props.directory);
         }
     }
 
@@ -162,7 +166,7 @@ const ReleaseComponent = () => {
         return (
             <span
                 className="release-component-link"
-                onClick={() => shell.openExternal("http://l.rw.rw/upterm_releases")}>
+                onClick={() => (window as any).electronAPI?.openExternal("http://l.rw.rw/upterm_releases")}>
                 Download New Release
             </span>
         );

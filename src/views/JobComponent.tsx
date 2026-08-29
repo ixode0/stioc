@@ -15,6 +15,8 @@ interface State {
 }
 
 export class JobComponent extends React.Component<Props, State> {
+    private jobRef = React.createRef<HTMLDivElement>();
+
     constructor(props: Props) {
         super(props);
 
@@ -48,7 +50,8 @@ export class JobComponent extends React.Component<Props, State> {
         }
 
         return (
-            <div className={"job"} data-status={this.props.job.status} ref="job">
+            // @ts-ignore
+            <div className={"job"} data-status={this.props.job.status} ref={this.jobRef}>
                 <JobHeaderComponent
                     job={this.props.job}
                     showPrettifyToggle={canBePrettified}
@@ -64,7 +67,6 @@ export class JobComponent extends React.Component<Props, State> {
     }
 
     private get jobNode(): HTMLDivElement {
-        /* tslint:disable:no-string-literal */
-        return this.refs["job"] as HTMLDivElement;
+        return this.jobRef.current as HTMLDivElement;
     }
 }

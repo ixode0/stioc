@@ -1,10 +1,10 @@
-import {remote} from "electron";
 import {Observable} from "rxjs/Observable";
 import "rxjs/add/observable/fromEvent";
 import "rxjs/add/operator/map";
 import "rxjs/add/operator/do";
 import {NeverObservable} from "rxjs/observable/NeverObservable";
 import {Subject} from "rxjs/Subject";
+// TODO: migrate remote -> electronAPI
 
 export class WindowService {
     readonly onResize: Observable<{}>;
@@ -12,30 +12,23 @@ export class WindowService {
     readonly onBoundsChange: Observable<Electron.Rectangle>;
 
     constructor() {
-        if (remote) {
-            const electronWindow = remote.BrowserWindow.getAllWindows()[0];
+        // TODO: migrate remote -> electronAPI - remote.BrowserWindow removed
+        // #420 Window title: ApplicationComponent now syncs session.title -> BrowserWindow via electronAPI.setTitle
+        // #372 split: resize events must propagate to all sessions; ApplicationComponent.resizeAllSessions handles font+window resize
+        this.onResize = new NeverObservable() as unknown as Observable<{}>;
+        this.onBoundsChange = new NeverObservable() as unknown as Observable<Electron.Rectangle>;
+        window.onbeforeunload = () => {
+            this.onClose.next({} as any);
+        };
+    }
 
-            this.onResize = Observable.fromEvent(electronWindow, "resize")
-                .merge(Observable.fromEvent(electronWindow.webContents, "devtools-opened"))
-                .merge(Observable.fromEvent(electronWindow.webContents, "devtools-closed"));
-
-            this.onBoundsChange = Observable.fromEvent(electronWindow, "move")
-                .merge(Observable.fromEvent(electronWindow, "resize"))
-                .map(() => electronWindow.getBounds());
-
-            window.onbeforeunload = () => {
-                electronWindow
-                    .removeAllListeners()
-                    .webContents
-                    .removeAllListeners("devtools-opened")
-                    .removeAllListeners("devtools-closed")
-                    .removeAllListeners("found-in-page");
-
-                this.onClose.next();
-            };
-        } else {
-            this.onResize = new NeverObservable();
-            this.onBoundsChange = new NeverObservable();
+    // #420 helper to set BrowserWindow title from renderer (delegates to preload)
+    async setTitle(title: string): Promise<void> {
+        const api: any = (window as any).electronAPI;
+        if (api?.setTitle) {
+            await api.setTitle(title);
+        } else if (api?.setWindowTitle) {
+            await api.setWindowTitle(title);
         }
     }
 }

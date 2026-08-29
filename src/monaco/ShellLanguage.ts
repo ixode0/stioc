@@ -1,3 +1,4 @@
+import * as monaco from "monaco-editor";
 import {SessionID} from "../shell/Session";
 import {getSuggestions} from "../Autocompletion";
 import {services} from "../services/index";
@@ -142,7 +143,7 @@ monaco.editor.onDidCreateModel(model => {
     model.onDidChangeContent(async () => {
         const value = model.getValue();
 
-        const sessionID: SessionID = <SessionID>Number.parseInt(model.uri.authority, 10);
+        const sessionID: SessionID = Number.parseInt(model.uri.authority, 10) as SessionID;
         const session = services.sessions.get(sessionID);
         const executables = await io.executablesInPaths(session.environment.path);
         const markers: monaco.editor.IMarkerData[] = [];
@@ -170,7 +171,7 @@ monaco.editor.onDidCreateModel(model => {
 
                 if (!executables.includes(commandName) && !session.aliases.has(commandName)) {
                     markers.push({
-                        severity: monaco.Severity.Error,
+                        severity: monaco.MarkerSeverity.Error,
                         message: `Executable ${commandName} doesn't exist in $PATH.`,
                         ...tokenRange,
                     });
@@ -184,13 +185,22 @@ monaco.editor.onDidCreateModel(model => {
 
 monaco.languages.registerCompletionItemProvider("shell", {
     triggerCharacters: [" ", "/", "$", "-", "."],
-    provideCompletionItems: async function (model, position): Promise<monaco.languages.CompletionList> {
+    provideCompletionItems: async (
+        model: monaco.editor.ITextModel,
+        position: monaco.Position,
+        context: monaco.languages.CompletionContext,
+        token: monaco.CancellationToken,
+    ): Promise<monaco.languages.CompletionList> => {
         model.getValue();
-        const sessionID: SessionID = <SessionID>Number.parseInt(model.uri.authority, 10);
+        const sessionID: SessionID = Number.parseInt(model.uri.authority, 10) as SessionID;
         const session = services.sessions.get(sessionID);
         const text = model.getValue();
 
         const ast = new CompleteCommand(scan(text));
+
+        // context and token are required by new Monaco API but not used here
+        void context;
+        void token;
 
         return getSuggestions({
             currentText: text,

@@ -16,13 +16,20 @@ function getLetterSize(size: number, fontFamily: string) {
 }
 
 const fontSize = 16;
-const fontFamily = "'Ubuntu Mono', 'Fira Code', 'Menlo', monospace";
+// Powerline fallback chain: Fira Code & JetBrains Mono preferred for powerline glyphs + ligatures
+// Keep Ubuntu Mono for legacy, add JetBrains Mono and system fallbacks
+const fontFamily = "'Fira Code', 'JetBrains Mono', 'Ubuntu Mono', 'Menlo', 'DejaVu Sans Mono', monospace";
+export const fontLigatures = true;
+export const fallbackFonts = ["Fira Code", "JetBrains Mono", "Ubuntu Mono", "Menlo"];
 
 export class FontService {
-    size: number;
-    letterWidth: number;
-    letterHeight: number;
-    family: string;
+    size!: number;
+    letterWidth!: number;
+    letterHeight!: number;
+    family!: string;
+    // Monaco ligatures support – enables "calt" / "liga" for Fira Code / JetBrains Mono
+    readonly fontLigatures: boolean = true;
+    readonly fallbackFonts = fallbackFonts;
     readonly onChange = new Subject<void>();
 
     constructor() {

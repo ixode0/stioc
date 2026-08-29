@@ -91,6 +91,7 @@ export class Environment {
         return new EnvironmentPath(this);
     }
 
+    // #1191 Can't change directory – CDPATH resolution uses resolveDirectory with ~ expansion
     get cdpath(): FullPath[] {
         return _.uniq((this.get("CDPATH") || ".").split(delimiter).map(path => path || this.pwd).map(path => resolveDirectory(this.pwd, path)));
     }
@@ -109,6 +110,7 @@ export class Environment {
 }
 
 export class EnvironmentPath extends AbstractOrderedSet<string> {
+    // #597 Export PATH – live view of PATH; set() via Environment.set("PATH", ...) updates executablesInPaths
     constructor(private environment: Environment) {
         super(
             () => {

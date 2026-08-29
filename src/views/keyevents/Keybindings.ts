@@ -215,6 +215,14 @@ function toAccelerator(event: KeyboardEvent): string {
     return parts.join("+");
 }
 
+function normalizePasteText(text: string): string {
+    let normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    if (normalized.endsWith("\n") && !normalized.slice(0, -1).includes("\n")) {
+        normalized = normalized.slice(0, -1);
+    }
+    return normalized;
+}
+
 export function handleUserEvent(application: ApplicationComponent, search: SearchComponent, event: UserEvent) {
     const sessionComponent = application.focusedTabComponent.focusedSessionComponent;
     if (!sessionComponent) {
@@ -230,12 +238,28 @@ export function handleUserEvent(application: ApplicationComponent, search: Searc
             return;
         }
 
+        const raw = event.clipboardData!.getData("text/plain");
+        const sanitized = normalizePasteText(raw);
+
         if (isJobRunning) {
-            application.focusedSession.lastJob!.write(event.clipboardData.getData("text/plain"));
+            application.focusedSession.lastJob!.write(sanitized);
 
             event.stopPropagation();
             event.preventDefault();
         } else {
+            // #1309/#1239 newline strip already handled; #1220 long paste -> insert directly without triggering suggest immediately
+            // Prevent default to avoid Monaco double-insert when we sanitized
+            if (sanitized !== raw) {
+                event.stopPropagation();
+                event.preventDefault();
+                promptComponent.insertValueInPlace(sanitized);
+            } else {
+                // Even if not changed, insert via component to keep debounced suggest guard
+                // Let default paste flow but ensure focus; debounce will guard long paste
+                event.stopPropagation();
+                event.preventDefault();
+                promptComponent.insertValueInPlace(sanitized);
+            }
             promptComponent.focus();
         }
 
@@ -311,9 +335,33 @@ export function handleUserEvent(application: ApplicationComponent, search: Searc
         return;
     }
 
-    // CLI clear
+    // CLI clear / #1115 Smart Ctrl+C: selection -> copy, else SIGINT/clear
     if (isKeybindingForEvent(event, KeyboardAction.cliClearText)) {
-        promptComponent.clear();
+        const selectionText = (typeof window !== "undefined" && (window as any).getSelection) ? (window.getSelection()?.toString() ?? "") : "";
+        if (selectionText && selectionText.length > 0) {
+            try {
+                // @ts-ignore clipboard API
+                if ((navigator as any).clipboard?.writeText) {
+                    (navigator as any).clipboard.writeText(selectionText);
+                } else {
+                    // fallback
+                    // @ts-ignore execCommand may be deprecated but still fallback
+                    document.execCommand("copy");
+                }
+            } catch {
+                // ignore
+            }
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
+        // No selection -> SIGINT if job running, otherwise clear prompt
+        if (isJobRunning) {
+            // @ts-ignore lastJob may be undefined
+            application.focusedSession.lastJob?.interrupt();
+        } else {
+            promptComponent.clear();
+        }
 
         event.stopPropagation();
         event.preventDefault();

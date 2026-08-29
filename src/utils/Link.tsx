@@ -1,11 +1,11 @@
 import * as React from "react";
-import * as e from "electron";
+// TODO: migrate remote -> electronAPI
 
-export const Link: React.StatelessComponent<{absolutePath: string, children: any}> = ({
+export const Link: React.FC<{absolutePath: string, children: any}> = ({
   absolutePath,
   children,
-}) => <span
-  style={{cursor: "pointer"}}
+}: any) => <span
+  style={{cursor: "pointer"} as any}
   className="underlineOnHover"
-  onClick={() => e.shell.openExternal(`file://${absolutePath}`)}
+  onClick={() => (window as any).electronAPI?.openExternal(`file://${absolutePath}`)}
 >{children}</span>;

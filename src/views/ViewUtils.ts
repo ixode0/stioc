@@ -5,7 +5,7 @@ export function isModifierKey(event: KeyboardEvent) {
 }
 
 export function setCaretPosition(node: Node, position: number) {
-    const selection = window.getSelection();
+    const selection = window.getSelection()!;
     const range = document.createRange();
 
     if (node.childNodes.length) {
@@ -22,7 +22,7 @@ export function setCaretPosition(node: Node, position: number) {
  * @link http://stackoverflow.com/questions/4811822/get-a-ranges-start-and-end-offsets-relative-to-its-parent-container/4812022#4812022
  */
 export function getCaretPosition(element: Node): number {
-    const selection = element.ownerDocument.defaultView.getSelection();
+    const selection = element.ownerDocument!.defaultView!.getSelection()!;
 
     if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);

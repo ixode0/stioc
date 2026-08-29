@@ -1,3 +1,4 @@
+import * as monaco from "monaco-editor";
 import {services} from "../services/index";
 import * as _ from "lodash";
 
@@ -20,12 +21,28 @@ monaco.languages.register({
 
 monaco.languages.registerCompletionItemProvider("shell-history", {
     triggerCharacters: [" ", "/"],
-    provideCompletionItems: () => {
+    provideCompletionItems: (
+        model: monaco.editor.ITextModel,
+        position: monaco.Position,
+        context: monaco.languages.CompletionContext,
+        token: monaco.CancellationToken,
+    ): monaco.languages.CompletionList => {
+        void model;
+        void position;
+        void context;
+        void token;
         return {
-            isIncomplete: false,
-            items: _.uniqBy(services.history.all, record => record.command).map(record => ({
+            incomplete: false,
+            suggestions: _.uniqBy(services.history.all, record => record.command).map(record => ({
                 label: record.command,
                 kind: monaco.languages.CompletionItemKind.Text,
+                insertText: record.command,
+                range: {
+                    startLineNumber: 1,
+                    startColumn: 1,
+                    endLineNumber: 1,
+                    endColumn: 1,
+                },
             })),
         };
     },

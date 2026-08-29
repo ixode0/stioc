@@ -21,6 +21,8 @@ export class Session extends events.EventEmitter {
     readonly environment = new Environment(processEnvironment);
     readonly aliases = new Aliases(aliasesFromConfig);
     historicalPresentDirectoriesStack = new OrderedSet<string>();
+    // #420 Window/Tab title: custom title support (OSC 0/2 or user-set). If set, BrowserWindow title uses it; fallback to directory.
+    private _title: string | undefined;
 
     constructor(private _dimensions: Dimensions = {columns: 80, rows: 25}) {
         super();
@@ -67,11 +69,36 @@ export class Session extends events.EventEmitter {
         services.sessions.close(this.id);
     }
 
+    // #420 custom title – when set, ApplicationComponent syncs to BrowserWindow via electronAPI.setTitle
+    get title(): string {
+        return this._title ?? this.environment.pwd;
+    }
+
+    set title(value: string | undefined) {
+        const normalized = value?.trim() ? value.trim() : undefined;
+        if (normalized === this._title) {
+            return;
+        }
+        this._title = normalized;
+        this.emit("title-changed", this.title);
+    }
+
+    // Convenience for OSC 0/2 title sequences from PTY
+    setTitleFromPTY(value: string): void {
+        this.title = value;
+    }
+
+    clearTitle(): void {
+        this.title = undefined;
+    }
+
     get directory(): string {
         return this.environment.pwd;
     }
 
+    // #1191 Can't change directory, #1290 trailing slash, #462 cd stack
     set directory(value: string) {
+        // normalizeDirectory ensures trailing slash (#1290) so PWD always consistent
         let normalizedDirectory = normalizeDirectory(value);
         if (normalizedDirectory === this.directory) {
             return;
@@ -82,6 +109,7 @@ export class Session extends events.EventEmitter {
         );
 
         this.environment.pwd = normalizedDirectory;
+        // historicalPresentDirectoriesStack tracks cd history; cd - uses expandHistoricalDirectory (#462)
         this.historicalPresentDirectoriesStack.prepend(normalizedDirectory);
 
         PluginManager.environmentObservers.forEach(observer =>

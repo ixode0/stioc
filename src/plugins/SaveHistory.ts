@@ -1,6 +1,6 @@
 import {appendFileSync} from "fs";
 import {historyFilePath} from "../utils/Common";
-import * as csvStringify from "csv-stringify";
+import {stringify as csvStringify} from "csv-stringify/sync";
 import {services} from "../services/index";
 
 services.jobs.onFinish.subscribe(job => services.history.add({
@@ -11,7 +11,7 @@ services.jobs.onFinish.subscribe(job => services.history.add({
     sessionID: job.session.id,
 }));
 
-services.history.onNewRecord.subscribe(record => csvStringify(
-    [Object.values(record)],
-    (_error, output) => appendFileSync(historyFilePath, output),
-));
+services.history.onNewRecord.subscribe(record => {
+    const output = csvStringify([Object.values(record)]);
+    appendFileSync(historyFilePath, output);
+});

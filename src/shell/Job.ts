@@ -1,9 +1,8 @@
-import * as _ from "lodash";
 import * as i from "../Interfaces";
 import * as React from "react";
 import {Session} from "./Session";
 import {Prompt} from "./Prompt";
-import {Output} from "../Output";
+import {XtermOutput} from "../xterm/XtermOutput";
 import {CommandExecutor, NonZeroExitCodeError} from "./CommandExecutor";
 import {PTY} from "../PTY";
 import {PluginManager} from "../PluginManager";
@@ -16,14 +15,14 @@ import {TerminalLikeDevice} from "../Interfaces";
 export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
     public status: Status = Status.InProgress;
     readonly startTime = Date.now();
-    private readonly _output: Output;
-    private readonly throttledDataEmitter = _.throttle(() => this.emit("data"), 1000 / 60);
+    private readonly _output: XtermOutput;
     private pty: PTY | undefined;
 
     constructor(private _session: Session, private _prompt: Prompt) {
         super();
-        this._output = new Output(this, this._session.dimensions);
-        this._output.on("data", this.throttledDataEmitter);
+        this._output = new XtermOutput(this._session.dimensions);
+        // xterm buffer — без throttle, прямой проброс события data
+        this._output.on("data", () => this.emit("data"));
     }
 
     async execute(): Promise<void> {
@@ -46,13 +45,13 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
         }
     }
 
-    handleError(message: NonZeroExitCodeError | string): void {
+    handleError(message: unknown): void {
         this.setStatus(Status.Failed);
         if (message) {
             if (message instanceof NonZeroExitCodeError) {
                 // Do nothing.
             } else {
-                this._output.write(message);
+                this._output.write(message as string);
             }
         }
         this.emit("end");
@@ -88,9 +87,10 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
     }
 
     resize(): void {
+        // Always sync xterm dimensions so split/ window resize is visible even after PTY exit
+        this.output.dimensions = this.session.dimensions;
         if (this.pty && this.status === Status.InProgress) {
             this.pty.resize(this.session.dimensions);
-            this.output.dimensions = this.session.dimensions;
         }
     }
 
@@ -114,7 +114,7 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
         return PluginManager.prettyfiers.find(prettyfier => prettyfier.isApplicable(this));
     }
 
-    get output(): Output {
+    get output(): XtermOutput {
         return this._output;
     }
 

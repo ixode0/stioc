@@ -49,8 +49,8 @@ async function withRvmData(directory: string, callback: (binPaths: string[], gem
         const gemPaths = getGemSetPaths(rubyVersion, gemSetName);
 
         callback(binPaths(rubyVersion, gemSetName), gemPaths);
-    } catch (e) {
-        if (e.code === "ENOENT") {
+    } catch (e: any) {
+        if ((e as any).code === "ENOENT") {
             // No RVM installed. Ignore exception.
         } else {
             throw e;

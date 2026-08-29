@@ -1,3 +1,4 @@
+import * as monaco from "monaco-editor";
 import {leafNodeAt, ASTNode} from "./shell/Parser";
 import * as _ from "lodash";
 import {Environment} from "./shell/Environment";
@@ -30,10 +31,17 @@ export async function getSuggestions({
     const uniqueSuggestions = _.uniqBy(suggestions, suggestion => suggestion.label);
 
     return {
-        isIncomplete: false,
-        items: uniqueSuggestions.map(suggestion => ({
+        incomplete: false,
+        suggestions: uniqueSuggestions.map(suggestion => ({
             ...suggestion,
             kind: monaco.languages.CompletionItemKind.Interface,
-        })),
+            insertText: suggestion.insertText ?? suggestion.label,
+            range: suggestion.range ?? {
+                startLineNumber: 1,
+                startColumn: 1,
+                endLineNumber: 1,
+                endColumn: 1,
+            },
+        } as unknown as monaco.languages.CompletionItem)),
     };
 }

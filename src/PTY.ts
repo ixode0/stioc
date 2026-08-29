@@ -10,6 +10,9 @@ interface ITerminal {
     resize(cols: number, rows: number): void;
     kill(signal?: string): void;
     on(type: string, listener: (...args: any[]) => any): void;
+    // node-pty >=1.1 strongly typed events (IEvent)
+    onData?: (listener: (data: string) => void) => { dispose(): void };
+    onExit?: (listener: (e: { exitCode: number; signal?: number }) => void) => { dispose(): void };
 }
 
 export class PTY {
@@ -24,15 +27,38 @@ export class PTY {
         info(`PTY: ${loginShell.executableName} ${JSON.stringify(shellArguments)}`);
         info(`Dimensions: ${JSON.stringify(dimensions)}}`);
 
-        this.terminal = <any> pty.fork(loginShell.executableName, shellArguments, {
+        // node-pty 1.0: fork -> spawn, add ConPTY check for Windows
+        const useConpty = process.platform === "win32";
+        this.terminal = (pty as any).spawn(loginShell.executableName, shellArguments, {
             cols: dimensions.columns,
             rows: dimensions.rows,
             cwd: env.PWD,
-            env: env,
+            env: env as unknown as {[key: string]: string},
+            name: "xterm-256color",
+            useConpty: useConpty ? true : undefined,
+            // Fallback for older node-pty 1.0 conpty flag
+            ...(useConpty ? { experimentalUseConpty: true } as any : {}),
         });
 
-        this.terminal.on("data", (data: string) => dataHandler(data));
-        this.terminal.on("exit", (code: number) => exitHandler(code));
+        // node-pty >=1.1 exposes typed onData/onExit (IEvent). Prefer them, fallback to legacy .on()
+        // Fixes white-screen race and ensures #305 hang can be observed via typed exit.
+        const tAny = this.terminal as any;
+        const hasTypedData = tAny.onData && typeof tAny.onData === "function";
+        const hasTypedExit = tAny.onExit && typeof tAny.onExit === "function";
+        if (hasTypedData && hasTypedExit) {
+            try {
+                tAny.onData((data: string) => dataHandler(data));
+                tAny.onExit((e: { exitCode: number; signal?: number }) => exitHandler(e.exitCode));
+            } catch {
+                this.terminal.on("data", (data: string) => dataHandler(data));
+                this.terminal.on("exit", (code: number) => exitHandler(code));
+            }
+        } else {
+            this.terminal.on("data", (data: string) => dataHandler(data));
+            this.terminal.on("exit", (code: number) => exitHandler(code));
+        }
+
+        // #305: hang when PWD was deleted – exit may never fire, caller can kill(SIGHUP) to terminate.
     }
 
     write(data: string): void {
@@ -51,11 +77,22 @@ export class PTY {
          *  and trying to kill it with SIGINT.
          *
          *  {@link https://github.com/chjj/pty.js/issues/58}
+         *  #305: hang in deleted directory requires explicit SIGHUP to terminate
          */
-        if (signal === "SIGINT") {
-            this.terminal.kill("SIGTERM");
-        } else {
-            this.terminal.kill(signal);
+        try {
+            if (signal === "SIGINT") {
+                this.terminal.kill("SIGTERM");
+            } else if (signal === "SIGHUP") {
+                // Explicitly support SIGHUP for #305; Windows throws if signal provided
+                this.terminal.kill("SIGHUP");
+            } else {
+                this.terminal.kill(signal);
+            }
+        } catch {
+            // Windows: kill(signal) throws when signal is given; fallback to default kill (=SIGHUP on unix)
+            try {
+                (this.terminal as any).kill();
+            } catch {}
         }
     }
 }

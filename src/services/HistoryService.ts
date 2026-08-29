@@ -2,7 +2,7 @@ import {readFileSync} from "fs";
 import {historyFilePath} from "../utils/Common";
 import * as _ from "lodash";
 
-import csvParse = require("csv-parse/lib/sync");
+import {parse as csvParse} from "csv-parse/sync";
 import {SessionID} from "../shell/Session";
 import {Subject} from "rxjs/Subject";
 

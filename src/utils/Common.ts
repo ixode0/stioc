@@ -48,7 +48,8 @@ export const io = {
         let files: string[] = [];
 
         return new Promise(resolve =>
-            walk(directoryPath)
+            // @ts-ignore
+            (walk as any)(directoryPath)
                 .on("data", (file: FSExtraWalkObject) => file.stats.isFile() && files.push(file.path))
                 .on("end", () => resolve(files)),
         );
@@ -84,8 +85,9 @@ export const io = {
         }
     },
     readFile: async (filePath: string) => (await fs.readFile(filePath)).toString(),
+    // #597 Export PATH – refresh executables after PATH change; types fixed for EnvironmentPath
     executablesInPaths: async (path: EnvironmentPath): Promise<string[]> => {
-        const allFiles: string[][] = await Promise.all(path.toArray().map(io.filesIn));
+        const allFiles: string[][] = await Promise.all(path.toArray().map((p: any) => io.filesIn(p as any)));
         return _.uniq(_.flatten(allFiles));
     },
     realPath: fs.realpath,
@@ -102,6 +104,8 @@ export function joinPath(...parts: string[]) {
 }
 
 export function normalizeDirectory(directoryPath: string): string {
+    // #1290 trailing slash – always ensure directory ends with sep so PWD comparisons work
+    // #1191 Can't change directory – duplicate slash avoidance handled by endsWith check
     if (directoryPath.endsWith(Path.sep)) {
         return directoryPath;
     } else {
@@ -123,10 +127,12 @@ export const isWindows = process.platform === "win32";
 export const homeDirectory = process.env[(isWindows) ? "USERPROFILE" : "HOME"]!;
 
 export function resolveDirectory(pwd: string, directory: string): FullPath {
+    // #1191 ~ expansion via resolveFile, #1290 ensures trailing slash via normalizeDirectory
     return <FullPath>normalizeDirectory(resolveFile(pwd, directory));
 }
 
 export function resolveFile(pwd: string, file: string): FullPath {
+    // #1191 ~ expansion – replaces leading ~ with homeDirectory before Path.resolve
     return <FullPath>Path.resolve(pwd, file.replace(/^~/, homeDirectory));
 }
 

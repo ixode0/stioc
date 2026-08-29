@@ -1,46 +1,34 @@
-import {app, ipcMain, nativeImage, BrowserWindow, screen} from "electron";
+import {app, ipcMain, nativeImage, BrowserWindow, screen, shell} from "electron";
+import * as path from "path";
 import {readFileSync} from "fs";
 import {windowBoundsFilePath} from "../utils/Common";
 
-app.on("ready", () => {
-    const bounds = windowBounds();
+app.commandLine.appendSwitch("ozone-platform-hint", "auto");
+app.commandLine.appendSwitch("enable-features", "UseOzonePlatform");
 
-    let options: Electron.BrowserWindowConstructorOptions = {
-        webPreferences: {
-            experimentalFeatures: true,
-            experimentalCanvasFeatures: true,
-        },
-        titleBarStyle: "hidden",
-        resizable: true,
-        minWidth: 500,
-        minHeight: 300,
-        width: bounds.width,
-        height: bounds.height,
-        x: bounds.x,
-        y: bounds.y,
-        show: false,
-    };
-    const browserWindow = new BrowserWindow(options);
-
-    if (app.dock) {
-        app.dock.setIcon(nativeImage.createFromPath("build/icon.png"));
-    } else {
-        browserWindow.setIcon(nativeImage.createFromPath("build/icon.png"));
+// #409/#1010 white-screen: GPU process crash leaves window blank on Linux/Wayland and macOS
+// electron 34: 'gpu-process-crashed' is deprecated in favor of 'child-process-gone', handle both
+(app as any).on("gpu-process-crashed" as any, (_event: any, killed: boolean) => {
+    // Recreate window if GPU crashes; renderer will reload on next createWindow
+    if (killed) {
+        const wins = BrowserWindow.getAllWindows();
+        wins.forEach(w => {
+            try {
+                if (!w.isDestroyed()) w.reload();
+            } catch {}
+        });
     }
-
-    browserWindow.loadURL("file://" + __dirname + "/../views/index.html");
-
-    browserWindow.webContents.on("did-finish-load", () => {
-        browserWindow.show();
-        browserWindow.focus();
-    });
-
-    app.on("open-file", (_event, file) => browserWindow.webContents.send("change-working-directory", file));
 });
-
-app.on("window-all-closed", () => app.quit());
-
-ipcMain.on("quit", app.quit);
+app.on("child-process-gone" as any, (_event: any, details: any) => {
+    if (details && (details.type === "GPU" || details.reason === "crashed")) {
+        const wins = BrowserWindow.getAllWindows();
+        wins.forEach(w => {
+            try {
+                if (!w.isDestroyed() && w.webContents && !w.webContents.isDestroyed()) w.reload();
+            } catch {}
+        });
+    }
+});
 
 function windowBounds(): Electron.Rectangle {
     try {
@@ -56,3 +44,108 @@ function windowBounds(): Electron.Rectangle {
         };
     }
 }
+
+function createWindow(): BrowserWindow {
+    const bounds = windowBounds();
+
+    const options: Electron.BrowserWindowConstructorOptions = {
+        webPreferences: {
+            contextIsolation: true,
+            sandbox: false,
+            preload: path.join(__dirname, "preload.js"),
+            nodeIntegration: false,
+        },
+        // #420 Window title: initial title, updated via window-set-title IPC (session.title)
+        title: "Upterm",
+        // #1305 Native window controls macOS: hidden titleBarStyle with traffic lights inset; reversed class handles drag region
+        titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+        // #341 Toggle Menubar: allow Alt to toggle menu bar on Linux/Win
+        autoHideMenuBar: false,
+        resizable: true,
+        minWidth: 500,
+        minHeight: 300,
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        show: false,
+    };
+
+    const browserWindow = new BrowserWindow(options);
+
+    if (app.dock) {
+        app.dock.setIcon(nativeImage.createFromPath("build/icon.png"));
+    } else {
+        browserWindow.setIcon(nativeImage.createFromPath("build/icon.png"));
+    }
+
+    browserWindow.loadURL("file://" + path.join(__dirname, "..", "views", "index.html"));
+
+    browserWindow.webContents.on("did-finish-load", () => {
+        browserWindow.show();
+        browserWindow.focus();
+    });
+
+    // #409/#1010: recover from renderer crash that manifests as white-screen
+    (browserWindow.webContents as any).on("render-process-gone", (_event: any, details: any) => {
+        if (details && (details.reason === "crashed" || details.reason === "killed")) {
+            try {
+                if (!browserWindow.isDestroyed()) browserWindow.reload();
+            } catch {}
+        }
+    });
+
+    return browserWindow;
+}
+
+app.whenReady().then(() => {
+    const browserWindow = createWindow();
+
+    app.on("open-file", (_event: Electron.Event, file: string) => browserWindow.webContents.send("change-working-directory", file));
+
+    app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
+app.on("window-all-closed", () => app.quit());
+
+ipcMain.handle("quit", () => {
+    app.quit();
+});
+
+ipcMain.handle("get-version", () => app.getVersion());
+ipcMain.handle("open-external", (_event: Electron.IpcMainInvokeEvent, url: string) => shell.openExternal(url));
+ipcMain.handle("window-minimize", (event: Electron.IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender)?.minimize());
+ipcMain.handle("window-maximize", (event: Electron.IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win?.isMaximized()) {
+        win.unmaximize();
+    } else {
+        win?.maximize();
+    }
+});
+ipcMain.handle("window-close", (event: Electron.IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender)?.close());
+ipcMain.handle("window-toggle-fullscreen", (event: Electron.IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+        win.setFullScreen(!win.isFullScreen());
+    }
+});
+ipcMain.handle("window-toggle-devtools", (event: Electron.IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender)?.webContents.toggleDevTools());
+ipcMain.handle("window-is-maximized", (event: Electron.IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false);
+// #420 Window/Tab title: support custom title via session.title -> BrowserWindow title
+ipcMain.handle("window-set-title", (event: Electron.IpcMainInvokeEvent, title: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && typeof title === "string") {
+        win.setTitle(title);
+    }
+});
+ipcMain.on("set-title", (event: Electron.IpcMainEvent, title: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && typeof title === "string") {
+        win.setTitle(title);
+    }
+});
