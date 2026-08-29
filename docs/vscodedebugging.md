@@ -90,7 +90,7 @@ The contents of these files should be as follows.
     },
     "tasks": [
         {
-            // Custom prestart task i.e. npm run prestart.
+            // Custom prestart task i.e. ppnpm run compile.
             "taskName": "prestart",
             "command": "npm",
             "args": [
@@ -103,7 +103,7 @@ The contents of these files should be as follows.
             "problemMatcher": ["$tsc-watch"]
         },
         {
-            // Default compile task from package.json i.e. npm run compile.
+            // Default compile task from package.json i.e. pnpm run compile.
             "type": "npm",
             "script": "compile",
             "group": "build",
@@ -137,4 +137,6 @@ To enter debugging mode select the <b>Debug</b> icon on the left hand side menu.
 To launch a debug session, from the top left hand side of the <b>Debug</b> window select `Debug rendered process` and press the Play button.
 Note. A breakpoint needs to be placed in the code prior to launching a debug session, to allow stepping through code.
 
-These instructions were tested on vscode version 1.16.0.
+These instructions were tested on vscode version 1.90+ (2026).
+
+<!-- Updated for STIOC 2026 - Node 22, pnpm 9, Electron 34 -->

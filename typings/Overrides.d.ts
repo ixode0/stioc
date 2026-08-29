@@ -1,3 +1,4 @@
+// STIOC 2026 - updated typings (original from 2015, refreshed for TS 5.7)
 interface IntersectionObserverEntry {
     readonly time: number;
     readonly rootBounds: ClientRect | DOMRect;
