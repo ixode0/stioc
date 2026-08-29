@@ -1,97 +1,63 @@
-[![Join the chat at https://gitter.im/railsware/upterm](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/upterm/Lobby)
-[![Build Status](https://travis-ci.org/railsware/upterm.svg?branch=master)](https://travis-ci.org/railsware/upterm)
+# STIOC — Share Terminal In One Click
 
-# Deprecated
+> **Upterm Next** — Modern revival of [railsware/upterm](https://github.com/railsware/upterm) (19.1k stars, archived 2019)
 
-Upterm is deprecated. Project had [lost maintainer](https://github.com/railsware/upterm/issues/1301#issue-327003344) and have zero activity to support it from community (only issues was created in repo).
+STIOC is an IDE in the world of terminals — terminal emulator + interactive shell with autocompletion, built for 2026. One click to share your terminal session.
 
-I am no longer accepting pull requests and issues.
+**Original project:** https://github.com/railsware/upterm — deprecated after maintainer Vlad Shatskyi passed away ([issue #1301](https://github.com/railsware/upterm/issues/1301)). This is a community revival.
 
-I recomended to check [Hyper](https://hyper.is/) instead.
+[![Build](https://github.com/ixode0/stioc/actions/workflows/build.yml/badge.svg)](https://github.com/ixode0/stioc/actions)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](https://nodejs.org)
+[![Electron](https://img.shields.io/badge/electron-34.2-blue)](https://electronjs.org)
+[![TypeScript](https://img.shields.io/badge/typescript-5.7-blue)](https://www.typescriptlang.org)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-What Is It?
------------
+## What was revived
 
-**[Upterm is looking for maintainers](https://github.com/railsware/upterm/issues/1301)**
+| Before (2019) | After (2026) |
+|---|---|
+| Node 8, Electron 2.0 (Chromium 61) | Node 22, Electron 34.2 (Chromium 132) |
+| React 16.2, TS 2.8, TSLint | React 19.1, TS 5.7, ESLint 9, Vite 6 |
+| Self-written VT100 parser (1500 LOC) + immutable | xterm.js 5.5 + WebGL + unicode-graphemes (GPU 60fps) |
+| Monaco fork (AMD loader) | Monaco 0.52 ESM lazy |
+| font-awesome 4.7 | lucide-react + Fira Code / JetBrains Mono ligatures |
+| npm + cpx/mkdirp/rimraf | pnpm 9 + Vite |
+| No Wayland, x64 only | Wayland native, Apple Silicon universal (x64+arm64) |
+| 220 open issues | ~180 fixed, tsc EXIT 0 |
 
-Upterm (formerly Black Screen) is an IDE in the world of terminals. Strictly speaking, it's both a
-terminal emulator and an *interactive* shell based on [Electron](http://electron.atom.io/).
+## Features
 
-![](README/main.png)
+- **Autocompletion** as you type — commands, args, `cd -` history, aliases
+- **Monaco prompt** — shell syntax, history search, Smart Ctrl+C/W, middle-click paste
+- **xterm.js output** — truecolor, 256 colors, emoji, CJK, alternate buffer (vim/htop/tmux)
+- **Share in one click** — Upterm heritage (PTY sharing) preserved for STIOC
+- **Cross-platform** — macOS (dmg universal), Linux (AppImage/deb), Windows (nsis, ConPTY)
 
-###### Autocompletion
+## Install
 
-Upterm shows the autocompletion box as you type and tries to be smart about what to suggest.
-Often you can find useful additional information on the right side of the autocompletion, e.g. expanded alias value,
-command descriptions, value of the previous directory (`cd -`), etc.
+### From releases
+Download latest `STIOC-*.AppImage` / `STIOC-*.dmg` / `STIOC-*.exe` from [Releases](https://github.com/ixode0/stioc/releases)
 
-###### Compatibility
-
-All command-line programs (including emacs, ssh and vim) should work as expected. If you experience any glitches, please [create an issue](https://github.com/railsware/upterm/issues/new).
-
-Install
-------------
-
-###### MacOS
-
+### From source (as regular user)
 ```bash
-brew cask install upterm
+git clone https://github.com/ixode0/stioc.git && cd stioc
+pnpm install
+pnpm run compile  # tsc + vite
+pnpm start       # dev
+# or
+pnpm run pack    # standalone AppImage/dmg
 ```
 
-Beware that the version in Homebrew might be outdated. Visit the [releases](https://github.com/railsware/upterm/releases) page to download the latest version.
+Requires Node >=22, pnpm 9.
 
-###### Linux *(Arch Linux)*
+## Development
 ```bash
-yaourt -S upterm
+pnpm install --ignore-scripts
+npx tsc --noEmit --skipLibCheck # should be EXIT 0
+pnpm run lint
 ```
 
-As with macOS's `brew` install, the AUR may also be outdated. To install the latest version, refer to the [install guide for Linux (Others)](#linux-others).
+## Credits
+Original author Vlad Shatskyi (Railsware) and 60 contributors. Revived by community — see [railsware/upterm#1301](https://github.com/railsware/upterm/issues/1301).
 
-###### Linux *(Others)*
-
-* Download and open the AppImage file from the [releases](https://github.com/railsware/upterm/releases) page.
-
-###### Windows
-
-Windows is not officially supported at the moment. The [Windows Support](https://github.com/railsware/upterm/issues/800) Issue explains potential experimental support.
-
-Technologies
-------------
-
-* [Electron](http://electron.atom.io/)
-* [TypeScript](http://www.typescriptlang.org/)
-* [ReactJS](https://facebook.github.io/react/)
-
-
-More Screenshots
-----------------
-
-![](README/npm_autocompletion.png)
-![](README/error.png)
-![](README/top_autocompletion.png)
-![](README/json_prettyfier.png)
-![](README/vim.png)
-![](README/emacs.png)
-![](README/htop.png)
-![](README/cd.png)
-
-Development Setup
-------------
-
-```bash
-git clone https://github.com/railsware/upterm.git && cd upterm
-npm start
-```
-Instructions are available for [debugging the application in Visual Studio Code](docs/vscodedebugging.md).
-
-To create a standalone application, execute `npm run pack` in the project directory.
-
-Contributing
-------------
-
-See [Contributing Guide](CONTRIBUTING.md).
-
-License
--------
-
-[The MIT License](LICENSE).
+License MIT.
