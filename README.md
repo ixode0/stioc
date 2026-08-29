@@ -1,6 +1,6 @@
 # STIOC — Share Terminal In One Click
 
-> **Upterm Next** — Modern revival of [railsware/upterm](https://github.com/railsware/upterm) (19.1k stars, archived 2019)
+> **Upterm Next** — Modern revival of [railsware/upterm](https://github.com/railsware/upterm)
 
 STIOC is an IDE in the world of terminals — terminal emulator + interactive shell with autocompletion, built for 2026. One click to share your terminal session.
 
@@ -10,7 +10,6 @@ STIOC is an IDE in the world of terminals — terminal emulator + interactive sh
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](https://nodejs.org)
 [![Electron](https://img.shields.io/badge/electron-34.2-blue)](https://electronjs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.7-blue)](https://www.typescriptlang.org)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## What was revived
 
@@ -59,5 +58,3 @@ pnpm run lint
 
 ## Credits
 Original author Vlad Shatskyi (Railsware) and 60 contributors. Revived by community — see [railsware/upterm#1301](https://github.com/railsware/upterm/issues/1301).
-
-License MIT.
