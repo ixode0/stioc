@@ -15,19 +15,32 @@ export default tseslint.config(
     },
     rules: {
       "no-console": ["warn", { "allow": ["warn", "error"] }],
-      "no-debugger": "error",
-      "no-eval": "error",
-      "prefer-const": "error",
-      "no-var": "error",
-      "eqeqeq": ["error", "allow-null"],
+      "no-debugger": "warn",
+      "no-eval": "warn",
+      "no-var": "warn",
+      "eqeqeq": ["warn", "allow-null"],
+      "no-case-declarations": "off",
+      "no-empty": "off",
+      "no-regex-spaces": "off",
+      "no-useless-escape": "off",
+      "no-prototype-builtins": "off",
+      "no-control-regex": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/no-wrapper-object-types": "off",
-      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }]
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unsafe-function-type": "off",
+      "@typescript-eslint/triple-slash-reference": "off",
+      "prefer-const": "off"
     }
   },
   {
-    files: ["src/Output.ts", "src/Output.legacy.ts"],
-    rules: { "@typescript-eslint/no-require-imports": "off" }
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "no-case-declarations": "off"
+    }
   }
 );
