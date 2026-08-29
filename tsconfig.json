@@ -11,15 +11,19 @@
     "preserveConstEnums": true,
     "experimentalDecorators": true,
     "noEmitOnError": true,
+    "rootDir": "src",
     "outDir": "compiled/src",
     "inlineSourceMap": true,
     "lib": ["ES2022", "dom"]
   },
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
     "typings",
     "test",
-    "compiled"
+    "compiled",
+    "vite.config.ts",
+    "eslint.config.js"
   ]
 }

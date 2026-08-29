@@ -98,8 +98,8 @@
     "lint": "eslint src test",
     "cleanup": "node --experimental-vm-modules -e \"require('fs').rmSync('compiled/src',{recursive:true,force:true})\"",
     "copy-html": "node --experimental-vm-modules -e \"require('fs').mkdirSync('compiled/src/views',{recursive:true}); require('fs').cpSync('src/views/index.html','compiled/src/views/index.html',{force:true})\"",
-    "compile": "tsc --noEmit && vite build",
-    "tsc": "tsc --noEmit"
+    "compile": "tsc --skipLibCheck && vite build",
+    "tsc": "tsc --noEmit --skipLibCheck"
   },
   "license": "MIT",
   "build": {

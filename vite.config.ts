@@ -1,28 +1,14 @@
 import { defineConfig } from "vite";
-import { viteStaticCopy } from "vite-plugin-static-copy";
+import { resolve } from "path";
 
 export default defineConfig({
-  root: "src",
+  root: "src/views",
   base: "./",
   build: {
-    outDir: "../compiled/src",
+    outDir: "../../compiled/src/views",
     emptyOutDir: false,
-    target: "es2022",
-    sourcemap: "inline",
     rollupOptions: {
-      input: {
-        main: "src/main/Main.ts"
-      }
+      input: resolve(__dirname, "src/views/index.html")
     }
-  },
-  plugins: [
-    viteStaticCopy({
-      targets: [
-        {
-          src: "src/views/index.html",
-          dest: "views"
-        }
-      ]
-    })
-  ]
+  }
 });
