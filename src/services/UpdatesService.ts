@@ -38,9 +38,9 @@ export class UpdatesService {
         https.get(
             {
                 host: "api.github.com",
-                path: "/repos/railsware/upterm/releases/latest",
+                path: "/repos/ixode0/stioc/releases/latest",
                 headers: {
-                    "User-Agent": "Upterm",
+                    "User-Agent": "STIOC",
                 },
             },
             (response) => {

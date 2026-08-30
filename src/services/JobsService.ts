@@ -1,5 +1,4 @@
-import {Subject} from "rxjs/Subject";
-import "rxjs/add/observable/fromEvent";
+import {Subject} from "rxjs";
 import {Job} from "../shell/Job";
 
 

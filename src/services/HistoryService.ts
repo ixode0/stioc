@@ -4,7 +4,7 @@ import * as _ from "lodash";
 
 import {parse as csvParse} from "csv-parse/sync";
 import {SessionID} from "../shell/Session";
-import {Subject} from "rxjs/Subject";
+import {Subject} from "rxjs";
 
 interface HistoryRecordWithoutID {
     command: string;

@@ -75,8 +75,8 @@ importers:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
       rxjs:
-        specifier: 5.5.8
-        version: 5.5.8
+        specifier: ^7.8.1
+        version: 7.8.2
       tinycolor2:
         specifier: 1.6.0
         version: 1.6.0
@@ -120,9 +120,6 @@ importers:
       '@types/react':
         specifier: 19.1.0
         version: 19.1.0
-      '@types/webdriverio':
-        specifier: 4.10.1
-        version: 4.10.1
       chai:
         specifier: 4.1.2
         version: 4.1.2
@@ -1040,9 +1037,6 @@ packages:
 
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
-
-  '@types/webdriverio@4.10.1':
-    resolution: {integrity: sha512-3gDxTkqc7o+j39ObyEE6WD+fXrY37f67yG93aktLkJDRzTvljqew2YshPjUgdYT7kWFBtpkJDiQiWLnl0U9W5Q==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -3145,10 +3139,6 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
-  rxjs@5.5.8:
-    resolution: {integrity: sha512-Bz7qou7VAIoGiglJZbzbXa4vpX5BmTTN2Dj/se6+SwADtw4SihqBIiEa7VmTXJ8pynvq0iFr5Gx9VLyye1rIxQ==}
-    engines: {npm: '>=2.0.0'}
-
   rxjs@7.8.2:
     resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
@@ -3365,10 +3355,6 @@ packages:
   supports-color@8.1.1:
     resolution: {integrity: sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q==}
     engines: {node: '>=10'}
-
-  symbol-observable@1.0.1:
-    resolution: {integrity: sha512-Kb3PrPYz4HanVF1LVGuAdW6LoVgIwjUYJGzFe7NDrBLCN4lsV/5J0MFurV+ygS4bRVwrCEt2c7MQ1R2a72oJDw==}
-    engines: {node: '>=0.10.0'}
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
@@ -4601,10 +4587,6 @@ snapshots:
       csstype: 3.2.3
 
   '@types/responselike@1.0.3':
-    dependencies:
-      '@types/node': 22.15.0
-
-  '@types/webdriverio@4.10.1':
     dependencies:
       '@types/node': 22.15.0
 
@@ -6948,10 +6930,6 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
-  rxjs@5.5.8:
-    dependencies:
-      symbol-observable: 1.0.1
-
   rxjs@7.8.2:
     dependencies:
       tslib: 2.8.1
@@ -7137,8 +7115,6 @@ snapshots:
   supports-color@8.1.1:
     dependencies:
       has-flag: 4.0.0
-
-  symbol-observable@1.0.1: {}
 
   symbol-tree@3.2.4: {}
 

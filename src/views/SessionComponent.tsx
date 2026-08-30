@@ -9,7 +9,7 @@ import {userFriendlyPath} from "../utils/Common";
 // TODO: migrate remote -> electronAPI: shell moved to window.electronAPI
 import {services} from "../services/index";
 import {colors} from "./css/colors";
-import {Subscription} from "rxjs/Subscription";
+import {Subscription} from "rxjs";
 
 interface Props {
     sessionID: SessionID;
