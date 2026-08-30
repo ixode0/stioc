@@ -83,9 +83,9 @@
     "vitest": "2.1.1"
   },
   "scripts": {
-    "postinstall": "electron-rebuild || true",
-    "rebuild": "electron-rebuild || @electron/rebuild",
-    "pack": "build",
+    "postinstall": "pnpm exec electron-rebuild || true",
+    "rebuild": "pnpm exec electron-rebuild || pnpm exec electron-builder install-app-deps",
+    "pack": "electron-builder",
     "electron": "electron .",
     "prestart": "pnpm install --frozen-lockfile && pnpm run compile",
     "start": "concurrently --kill-others -s first \"tsc --watch --noEmit\" \"cross-env NODE_ENV=development pnpm run electron\"",
