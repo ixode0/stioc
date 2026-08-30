@@ -23,7 +23,6 @@
     "console"
   ],
   "dependencies": {
-    "@electron/rebuild": "3.7.1",
     "@xterm/addon-search": "0.16.0",
     "@xterm/addon-unicode-graphemes": "0.4.0",
     "@xterm/addon-webgl": "0.18.0",
@@ -35,18 +34,19 @@
     "dirStat": "0.0.2",
     "electron-updater": "6.6.2",
     "fs-extra": "11.2.0",
+    "immutable": "4.3.7",
     "lucide-react": "^0.468.0",
     "klaw": "2.1.1",
     "lodash": "4.17.21",
     "mode-to-permissions": "0.0.2",
     "monaco-editor": "0.52.0",
     "node-pty": "1.1.0",
+    "node-ansiparser": "2.2.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "rxjs": "5.5.8",
     "tinycolor2": "1.6.0",
-    "@xterm/xterm": "5.5.0",
-    "xterm": "5.3.0"
+    "@xterm/xterm": "5.5.0"
   },
   "devDependencies": {
     "@eslint/js": "9.20.0",
@@ -69,7 +69,6 @@
     "electron": "34.2.0",
     "electron-builder": "26.15.3",
     "electron-mocha": "6.0.4",
-    "electron-rebuild": "3.2.9",
     "electron-vite": "3.1.0",
     "eslint": "9.20.0",
     "jsdom": "^25.0.1",
@@ -84,18 +83,18 @@
     "vitest": "2.1.1"
   },
   "scripts": {
-    "postinstall": "electron-rebuild",
-    "rebuild": "electron-rebuild",
+    "postinstall": "electron-rebuild || true",
+    "rebuild": "electron-rebuild || @electron/rebuild",
     "pack": "build",
     "electron": "electron .",
-    "prestart": "npm install && npm run compile",
-    "start": "concurrently --kill-others -s first \"tsc --watch --noEmit\" \"cross-env NODE_ENV=development npm run electron\"",
-    "test": "npm run lint && npm run compile && npm run unit-tests && npm run ui-tests && npm run integration-tests",
+    "prestart": "pnpm install --frozen-lockfile && pnpm run compile",
+    "start": "concurrently --kill-others -s first \"tsc --watch --noEmit\" \"cross-env NODE_ENV=development pnpm run electron\"",
+    "test": "pnpm run lint && pnpm run compile && pnpm run unit-tests && pnpm run ui-tests && pnpm run integration-tests",
     "unit-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.ts')",
     "ui-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.tsx')",
     "integration-tests": "NODE_ENV=test electron-mocha --require ts-node/register test/e2e.ts",
     "update-dependencies": "ncu -u",
-    "lint": "eslint src test",
+    "lint": "eslint --config eslint.config.js src test",
     "cleanup": "node --experimental-vm-modules -e \"require('fs').rmSync('compiled/src',{recursive:true,force:true})\"",
     "copy-html": "node --experimental-vm-modules -e \"require('fs').mkdirSync('compiled/src/views',{recursive:true}); require('fs').cpSync('src/views/index.html','compiled/src/views/index.html',{force:true})\"",
     "compile": "tsc --skipLibCheck && vite build",
@@ -116,6 +115,10 @@
       "package.json"
     ],
     "asar": true,
+    "asarUnpack": [
+      "**/node-pty/**/*",
+      "**/*.node"
+    ],
     "publish": {
       "provider": "github"
     },

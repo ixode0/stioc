@@ -97,6 +97,11 @@ export class PTY {
     }
 }
 
+function shellEscape(arg: string): string {
+    if (/^[a-zA-Z0-9._\-\/:]+$/.test(arg)) return arg;
+    return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+
 export function executeCommand(
     command: string,
     args: string[] = [],
@@ -111,7 +116,8 @@ export function executeCommand(
             shell: loginShell.commandExecutorPath,
         };
 
-        ChildProcess.exec(`${command} ${args.join(" ")}`, options, (error, output) => {
+        const escaped = [command, ...args].map(shellEscape).join(" ");
+        ChildProcess.exec(escaped, options, (error, output) => {
             if (error) {
                 reject(error);
             } else {

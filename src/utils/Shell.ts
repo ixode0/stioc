@@ -151,7 +151,7 @@ class Cmd extends Shell {
     }
 
     combineCommands(commands: string[]) {
-        return `"${commands.join(" && ")}`;
+        return `"${commands.join(" && ")}"`;
     }
 
     async loadAliases() {
@@ -166,14 +166,21 @@ const supportedShells: Dictionary<Shell> = {
 };
 
 const shell = (): string => {
-    const shellName = process.env.SHELL ? basename(process.env.SHELL!) : "";
-    if (shellName in supportedShells) {
-        return shellName;
+    const raw = process.env.SHELL || "";
+    // basename must handle both POSIX and Windows separators; use win32.basename for Windows SHELL
+    const shellName = raw ? (Path.win32.basename(raw) || basename(raw)) : "";
+    const normalized = shellName.toLowerCase();
+    // case-insensitive lookup for cmd.exe
+    const key = Object.keys(supportedShells).find(k => k.toLowerCase() === normalized);
+    if (key) {
+        return key;
     } else {
         const defaultShell = isWindows ? Cmd.cmdPath : "/bin/bash";
+        const fallbackKey = isWindows ? "cmd.exe" : "bash";
+        if (!raw) return fallbackKey;
         console.error(`${shellName} is not supported; defaulting to ${defaultShell}`);
-        return defaultShell;
+        return fallbackKey;
     }
 };
 
-export const loginShell: Shell = supportedShells[basename(shell())];
+export const loginShell: Shell = supportedShells[shell()];

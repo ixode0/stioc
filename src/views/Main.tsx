@@ -1,12 +1,11 @@
-import {handleUserEvent} from "./keyevents/Keybindings";
-import {handleMouseEvent} from "./mouseevents/MouseEvents";
-
 process.env.PATH = "/usr/local/bin:" + process.env.PATH;
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
 process.env.LANG = process.env.LANG || "en_US.UTF-8";
 process.env.COLORTERM = "truecolor";
 process.env.TERM = "xterm-256color";
 
+import {handleUserEvent} from "./keyevents/Keybindings";
+import {handleMouseEvent} from "./mouseevents/MouseEvents";
 import {loadAliasesFromConfig} from "../shell/Aliases";
 import * as React from "react";
 import { createRoot } from "react-dom/client";

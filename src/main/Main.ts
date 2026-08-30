@@ -7,18 +7,7 @@ app.commandLine.appendSwitch("ozone-platform-hint", "auto");
 app.commandLine.appendSwitch("enable-features", "UseOzonePlatform");
 
 // #409/#1010 white-screen: GPU process crash leaves window blank on Linux/Wayland and macOS
-// electron 34: 'gpu-process-crashed' is deprecated in favor of 'child-process-gone', handle both
-(app as any).on("gpu-process-crashed" as any, (_event: any, killed: boolean) => {
-    // Recreate window if GPU crashes; renderer will reload on next createWindow
-    if (killed) {
-        const wins = BrowserWindow.getAllWindows();
-        wins.forEach(w => {
-            try {
-                if (!w.isDestroyed()) w.reload();
-            } catch {}
-        });
-    }
-});
+// electron 34: 'gpu-process-crashed' deprecated -> use 'child-process-gone'
 app.on("child-process-gone" as any, (_event: any, details: any) => {
     if (details && (details.type === "GPU" || details.reason === "crashed")) {
         const wins = BrowserWindow.getAllWindows();
@@ -117,7 +106,18 @@ ipcMain.handle("quit", () => {
 });
 
 ipcMain.handle("get-version", () => app.getVersion());
-ipcMain.handle("open-external", (_event: Electron.IpcMainInvokeEvent, url: string) => shell.openExternal(url));
+const ALLOWED_EXTERNAL = /^(https?:\/\/|mailto:|file:\/\/\/)[^\s]*$/i;
+ipcMain.handle("open-external", (_event: Electron.IpcMainInvokeEvent, url: string) => {
+    if (typeof url !== "string" || url.length > 2048) throw new Error("Invalid URL");
+    const trimmed = url.trim();
+    if (!ALLOWED_EXTERNAL.test(trimmed)) throw new Error(`Blocked external URL: ${trimmed.slice(0, 80)}`);
+    if (trimmed.startsWith("file://")) {
+        // Only allow file:// inside home or /tmp, block arbitrary system files
+        const { URL } = require("url");
+        try { new URL(trimmed); } catch { throw new Error("Invalid file URL"); }
+    }
+    return shell.openExternal(trimmed);
+});
 ipcMain.handle("window-minimize", (event: Electron.IpcMainInvokeEvent) => BrowserWindow.fromWebContents(event.sender)?.minimize());
 ipcMain.handle("window-maximize", (event: Electron.IpcMainInvokeEvent) => {
     const win = BrowserWindow.fromWebContents(event.sender);

@@ -14,9 +14,9 @@ import {Prompt} from "./Prompt";
 import {services} from "../services/index";
 
 export type SessionID = number & {__isSessionID: true};
-
+let _sessionNextId = Date.now();
 export class Session extends events.EventEmitter {
-    readonly id: SessionID = <SessionID>Date.now();
+    readonly id: SessionID = <SessionID>(_sessionNextId++);
     jobs: Array<Job> = [];
     readonly environment = new Environment(processEnvironment);
     readonly aliases = new Aliases(aliasesFromConfig);

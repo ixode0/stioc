@@ -6,7 +6,7 @@ export default defineConfig({
   base: "./",
   build: {
     outDir: "../../compiled/src/views",
-    emptyOutDir: false,
+    emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, "src/views/index.html")
     }

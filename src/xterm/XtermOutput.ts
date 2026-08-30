@@ -1,5 +1,5 @@
 import * as events from "events";
-import { Terminal } from "xterm";
+import { Terminal } from "@xterm/xterm";
 import { BufferType, ScreenMode } from "../Enums";
 
 /**
@@ -33,11 +33,16 @@ export class XtermOutput extends events.EventEmitter {
             rows: dimensions.rows,
         });
 
-        // Проброс DEC private mode cursorKeys (1) для normalizeProcessInput.
-        // xterm не экспонирует состояние напрямую — слушаем ESC-последовательности если возможно.
-        // Fallback: остаётся false; пользователи могут отправить SS3/CSI в зависимости от режима приложения.
-        // Для совместимости оставляем поле мутабельным.
+        // Intercept DEC private mode 1 (DECCKM) to keep isCursorKeysModeSet in sync
+        const origWrite = this.terminal.write.bind(this.terminal);
+        (this.terminal as any).write = (data: string, cb?: () => void) => {
+            if (data.includes("\x1b[?1h")) this.isCursorKeysModeSet = true;
+            if (data.includes("\x1b[?1l")) this.isCursorKeysModeSet = false;
+            return origWrite(data, cb);
+        };
     }
+
+    setCursorKeysMode(v: boolean) { this.isCursorKeysModeSet = v; }
 
     /**
      * Запись данных в терминал (вызывается из PTY dataHandler).

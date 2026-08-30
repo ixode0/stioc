@@ -28,20 +28,17 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
     async execute(): Promise<void> {
         try {
             await CommandExecutor.execute(this);
-
-            // Need to wipe out PTY so that we
-            // don't keep trying to write to it.
             this.pty = undefined;
-
-            // Need to check the status here because it's
-            // executed even after the process was interrupted.
             if (this.status === Status.InProgress) {
                 this.setStatus(Status.Success);
             }
         } catch (exception) {
             this.handleError(exception);
+            return;
         } finally {
-            this.emit("end");
+            if (this.status !== Status.InProgress) {
+                this.emit("end");
+            }
         }
     }
 
@@ -54,7 +51,6 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
                 this._output.write(message as string);
             }
         }
-        this.emit("end");
     }
 
     isRunningPty(): boolean {
@@ -82,7 +78,8 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
         if (this.pty && this.status === Status.InProgress) {
             this.pty.kill("SIGINT");
             this.setStatus(Status.Failed);
-            this.emit("end");
+            // emit("end") will happen via PTY exit -> CommandExecutor reject -> execute() catch -> finally
+            // avoid double emit that races Session "job-finished" listener
         }
     }
 

@@ -87,8 +87,8 @@ const executors: Dictionary<(i: Job, a: string[]) => void> = {
                     }
                     // Strip surrounding quotes if stringLiteralValue returned undefined for $ expansions
                     if (value === rawValue) {
-                        // Remove only outer quotes, keep inner content intact
-                        const m = /^(["'])(.*)\1$/.exec(value);
+                        // Non-greedy + handle escaped inner quotes
+                        const m = /^(['"])(.*)\1$/.exec(value);
                         if (m) {
                             value = m[2];
                         }
@@ -183,14 +183,10 @@ export function sourceFile(session: Session, fileName: string): void {
                     variableValue = undefined;
                 }
                 if (variableValue === undefined) {
-                    // Fallback: strip outer quotes, preserve $VAR / colons for PATH (#94, #597)
-                    // Handles cases where Scanner Word regex lacks '$'
-                    const m = /^(["'])(.*)\1$/.exec(variableValueLiteral);
+                    const m = /^(['"])(.*)\1$/.exec(variableValueLiteral);
                     variableValue = m ? m[2] : variableValueLiteral;
                 }
                 session.environment.set(variableName, variableValue);
-                // #94 virtualenv: PATH / VIRTUAL_ENV / PS1 changes propagate via Environment;
-                // aliases/prompt observers will see updated env on next prompt
                 return;
             }
 
@@ -220,7 +216,7 @@ export function sourceFile(session: Session, fileName: string): void {
                     value = undefined;
                 }
                 if (value === undefined) {
-                    const m = /^(["'])(.*)\1$/.exec(rawVal);
+                    const m = /^(['"])(.*)\1$/.exec(rawVal);
                     value = m ? m[2] : rawVal;
                 }
                 session.environment.set(variableName, value);
