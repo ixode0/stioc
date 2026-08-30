@@ -38,3 +38,7 @@ Temporary Items
 
 # Directory created by IDEA
 .idea
+
+# pnpm only
+package-lock.json
+yarn.lock
