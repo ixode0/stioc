@@ -1,5 +1,4 @@
-import {Observable, Subject, NEVER} from "rxjs";
-// TODO: migrate remote -> electronAPI
+import {Observable, Subject, fromEvent} from "rxjs";
 
 export class WindowService {
     readonly onResize: Observable<{}>;
@@ -7,14 +6,22 @@ export class WindowService {
     readonly onBoundsChange: Observable<Electron.Rectangle>;
 
     constructor() {
-        // TODO: migrate remote -> electronAPI - remote.BrowserWindow removed
-        // #420 Window title: ApplicationComponent now syncs session.title -> BrowserWindow via electronAPI.setTitle
-        // #372 split: resize events must propagate to all sessions; ApplicationComponent.resizeAllSessions handles font+window resize
-        this.onResize = NEVER as unknown as Observable<{}>;
-        this.onBoundsChange = NEVER as unknown as Observable<Electron.Rectangle>;
+        this.onResize = fromEvent(window, "resize") as unknown as Observable<{}>;
+        // bounds via main IPC
+        this.onBoundsChange = new Observable<Electron.Rectangle>((sub) => {
+            const api: any = (window as any).electronAPI;
+            api?.onWindowBoundsChanged?.((b: Electron.Rectangle) => sub.next(b));
+            const handler = () => api?.getWindowBounds?.().then((b: Electron.Rectangle) => sub.next(b)).catch(()=>{});
+            window.addEventListener("resize", handler);
+            return () => window.removeEventListener("resize", handler);
+        });
         window.onbeforeunload = () => {
             this.onClose.next({} as any);
         };
+        window.addEventListener("resize", () => {
+            const api: any = (window as any).electronAPI;
+            api?.getWindowBounds?.().then((_b: Electron.Rectangle) => {}).catch(()=>{});
+        });
     }
 
     // #420 helper to set BrowserWindow title from renderer (delegates to preload)

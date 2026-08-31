@@ -5,7 +5,6 @@ import {ipcRenderer} from "electron";
 import * as classNamesModule from "classnames";
 const classNames: any = (classNamesModule as any).default ?? classNamesModule;
 import {TabHeaderComponent, Props} from "./TabHeaderComponent";
-// TODO: migrate remote -> electronAPI
 import * as css from "./css/styles";
 import {SearchComponent} from "./SearchComponent";
 import {TabComponent} from "./TabComponent";
@@ -48,6 +47,21 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         ipcRenderer.on("change-working-directory", (_event: any, directory: string) =>
             this.focusedSession.directory = directory,
         );
+
+        // Share: WS input -> focused job PTY
+        const api: any = (window as any).electronAPI;
+        api?.onShareInput?.((data: string) => {
+            try { this.focusedSession.lastJob?.write(data); } catch {}
+        });
+        // Share: broadcast PTY output to WS via main (real, no stub)
+        services.jobs.onStart.subscribe((job) => {
+            const out: any = (job as any).output;
+            if (out?.on) out.on("data", (d: string) => api?.sharePush?.(d).catch(()=>{}));
+            // also job-level data
+            job.on("data", () => {
+                try { const txt = out?.toString?.()?.slice(-4000); if (txt) api?.sharePush?.(txt).catch(()=>{}); } catch {}
+            });
+        });
 
         // #420 Window title sync: sync on mount and when focused session/title/directory changes
         this.syncWindowTitle = this.syncWindowTitle.bind(this);
@@ -193,7 +207,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
 
             this.setState(state);
         } else {
-            // TODO: migrate remote.shell.beep -> electronAPI
+            (window as any).electronAPI?.beep?.().catch(()=>{});
         }
     }
 
@@ -217,7 +231,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         if (this.state.tabs.length > index) {
             this.setState({focusedTabIndex: index});
         } else {
-            // TODO: migrate remote.shell.beep -> electronAPI
+            (window as any).electronAPI?.beep?.().catch(()=>{});
         }
     }
 

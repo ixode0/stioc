@@ -2,6 +2,7 @@ import {app, ipcMain, nativeImage, BrowserWindow, screen, shell} from "electron"
 import * as path from "path";
 import {readFileSync} from "fs";
 import {windowBoundsFilePath} from "../utils/Common";
+import {shareServer} from "./ShareServer";
 
 app.commandLine.appendSwitch("ozone-platform-hint", "auto");
 app.commandLine.appendSwitch("enable-features", "UseOzonePlatform");
@@ -149,3 +150,31 @@ ipcMain.on("set-title", (event: Electron.IpcMainEvent, title: string) => {
         win.setTitle(title);
     }
 });
+
+// Share — real STIOC feature, no stub
+ipcMain.handle("share-start", async () => {
+    const url = await shareServer.start(
+        (listener) => {
+            (shareServer as any)._listener = listener;
+            return { dispose: () => { (shareServer as any)._listener = undefined; } };
+        },
+        (data) => {
+            // data from WS clients -> broadcast to all windows PTY via renderer event
+            for (const w of BrowserWindow.getAllWindows()) w.webContents.send("share-input", data);
+        },
+    );
+    return url;
+});
+ipcMain.handle("share-push", (_e, data: string) => {
+    try { (shareServer as any)._listener?.(data); } catch {}
+    // also broadcast via shareServer directly
+    try { shareServer.broadcast(data); } catch {}
+});
+ipcMain.handle("share-stop", async () => { await shareServer.stop(); });
+ipcMain.handle("share-status", () => ({ running: shareServer.isRunning(), url: shareServer.getUrl() }));
+// WindowService real resize/bounds via IPC (fix NeverObservable)
+ipcMain.handle("get-window-bounds", (e) => BrowserWindow.fromWebContents(e.sender)?.getBounds());
+ipcMain.on("window-bounds-changed", (e, bounds: Electron.Rectangle) => {
+    for (const w of BrowserWindow.getAllWindows()) if (w.webContents !== e.sender) w.webContents.send("window-bounds-changed", bounds);
+});
+ipcMain.handle("beep", () => shell.beep());

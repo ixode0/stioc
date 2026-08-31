@@ -1,15 +1,9 @@
 import * as React from "react";
 import {Search} from "lucide-react";
 import {fontAwesome} from "./css/FontAwesome";
-// TODO: migrate remote -> electronAPI
 
 export class SearchComponent extends React.Component<{}, {}> {
     private inputRef = React.createRef<HTMLInputElement>();
-    private webContents: any = {
-        findInPage: (_text: string) => {},
-        stopFindInPage: (_action: string) => {},
-        on: (_event: string, _cb: Function) => {},
-    };
 
     constructor(props: any) {
         super(props);
@@ -38,8 +32,12 @@ export class SearchComponent extends React.Component<{}, {}> {
     }
 
     clearSelection(): void {
-        this.webContents.stopFindInPage("clearSelection");
+        // Search via xterm SearchAddon is wired in OutputComponent; here clear input + clear search highlight
         this.input.value = "";
+        try {
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+        } catch {}
     }
 
     blur() {
@@ -50,8 +48,9 @@ export class SearchComponent extends React.Component<{}, {}> {
         const text = (event.target as HTMLInputElement).value;
 
         if (text) {
-            this.webContents.findInPage(text);
-            this.webContents.on("found-in-page", () => this.input.focus());
+            try {
+                (window as any).find?.(text);
+            } catch {}
         } else {
             this.clearSelection();
             setTimeout(() => this.input.select(), 0);

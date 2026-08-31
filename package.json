@@ -2,7 +2,7 @@
   "name": "upterm",
   "productName": "Upterm",
   "description": "A terminal emulator for the 21st century.",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "main": "compiled/src/main/Main.js",
   "author": "Volodymyr Shatskyi <shockone89@gmail.com>",
   "repository": {
@@ -46,7 +46,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "rxjs": "^7.8.1",
-    "tinycolor2": "1.6.0"
+    "tinycolor2": "1.6.0",
+    "ws": "8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "9.20.0",
@@ -62,6 +63,7 @@
     "@types/mocha": "10.0.10",
     "@types/node": "22.15.0",
     "@types/react": "19.1.0",
+    "@types/ws": "8.5.13",
     "chai": "6.2.2",
     "concurrently": "9.1.2",
     "cross-env": "7.0.3",
@@ -91,7 +93,7 @@
     "test": "pnpm run lint && pnpm run compile && pnpm run unit-tests && pnpm run ui-tests && pnpm run integration-tests",
     "unit-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.ts' -not -name 'e2e.ts')",
     "ui-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.tsx')",
-    "integration-tests": "echo \"e2e: use 'pnpm exec playwright test' — spectron removed\" && exit 0",
+    "integration-tests": "pnpm exec playwright test --reporter=list",
     "update-dependencies": "ncu -u",
     "lint": "eslint --config eslint.config.js src test",
     "cleanup": "node --experimental-vm-modules -e \"require('fs').rmSync('compiled/src',{recursive:true,force:true})\"",

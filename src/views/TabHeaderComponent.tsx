@@ -11,6 +11,28 @@ export interface Props {
 }
 
 export class TabHeaderComponent extends React.Component<Props, {}> {
+    private shareUrl?: string;
+    private handleShare = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const api: any = (window as any).electronAPI;
+        if (!api?.shareStart) return;
+        try {
+            if (this.shareUrl) {
+                await api.shareStop();
+                this.shareUrl = undefined;
+                (window as any).alert?.("Share stopped");
+                this.forceUpdate();
+                return;
+            }
+            const url: string = await api.shareStart();
+            this.shareUrl = url;
+            try { await navigator.clipboard.writeText(url); } catch {}
+            (window as any).alert?.(`Share started: ${url}\n(Copied to clipboard)`);
+            this.forceUpdate();
+        } catch (err: any) {
+            (window as any).alert?.("Share failed: " + (err?.message||err));
+        }
+    };
     render() {
         return (
             <li className="tab-header"
@@ -24,6 +46,9 @@ export class TabHeaderComponent extends React.Component<Props, {}> {
                 </span>
 
                 <span>⌘{this.props.position}</span>
+                <span onClick={this.handleShare} title={this.shareUrl ? `Stop share ${this.shareUrl}` : "Share terminal (one click)"} style={{marginLeft:6, cursor:"pointer", fontSize:12, opacity:0.8}}>
+                    {this.shareUrl ? "● Share" : "○ Share"}
+                </span>
             </li>
         );
     }
