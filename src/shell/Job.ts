@@ -61,6 +61,12 @@ export class Job extends EmitterWithUniqueID implements TerminalLikeDevice {
         this.pty = pty;
     }
 
+    dispose(): void {
+        try { this._output.dispose(); } catch {}
+        try { this.pty?.kill("SIGHUP"); } catch {}
+        this.removeAllListeners();
+    }
+
     // Writes to the process' STDIN.
     write(input: string | KeyboardEvent) {
         this.pty!.write(normalizeProcessInput(input, this.output.isCursorKeysModeSet));

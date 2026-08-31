@@ -61,6 +61,7 @@ export class Session extends events.EventEmitter {
     }
 
     clearJobs(): void {
+        this.jobs.forEach(j=>{ try{(j as any).dispose?.()}catch{}});
         this.jobs = [];
         this.emit("jobs-changed");
     }
