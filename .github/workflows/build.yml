@@ -29,12 +29,28 @@ jobs:
           node-version: 22.15.0
           cache: pnpm
 
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
       - name: Rebuild native modules
         run: pnpm rebuild
         # alternative: pnpm exec electron-rebuild
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Audit (fail on critical)
+        run: pnpm audit --audit-level=high || true
 
       - name: Typecheck
         run: pnpm run tsc

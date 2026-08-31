@@ -1,0 +1,8 @@
+name: Feature request
+description: Suggest a feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes: { label: Idea, placeholder: "Share / autocomplete / xterm…" }
+    validations: { required: true }

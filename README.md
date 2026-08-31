@@ -7,9 +7,12 @@ STIOC is an IDE in the world of terminals — terminal emulator + interactive sh
 **Original project:** https://github.com/railsware/upterm — deprecated after maintainer Vlad Shatskyi passed away ([issue #1301](https://github.com/railsware/upterm/issues/1301)). This is a community revival.
 
 [![Build](https://github.com/ixode0/stioc/actions/workflows/build.yml/badge.svg)](https://github.com/ixode0/stioc/actions)
+[![Release](https://github.com/ixode0/stioc/actions/workflows/release.yml/badge.svg)](https://github.com/ixode0/stioc/actions/workflows/release.yml)
+[![CodeQL](https://github.com/ixode0/stioc/actions/workflows/codeql.yml/badge.svg)](https://github.com/ixode0/stioc/actions/workflows/codeql.yml)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933)](https://nodejs.org)
 [![Electron](https://img.shields.io/badge/electron-34.2-blue)](https://electronjs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.7-blue)](https://www.typescriptlang.org)
+[![pnpm](https://img.shields.io/badge/pnpm-9.12.3-orange)](https://pnpm.io)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## What was revived

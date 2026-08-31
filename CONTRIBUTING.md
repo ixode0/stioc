@@ -1,46 +1,47 @@
-I have found a bug!
--------------------
+# Contributing to STIOC
 
-Awesome, but before you [report it to us](issues/new), make sure to [check whether this has already been reported](issues?q=is%3Aissue).
-If not, before reporting the issue you'll need to gather some information by following these instructions:
+## Quick start (pnpm, Node 22)
 
-1. Make sure you are using the latest version of the application:
+```bash
+git clone https://github.com/ixode0/stioc.git && cd stioc
+pnpm install --frozen-lockfile
+pnpm run compile   # tsc + vite
+pnpm run lint      # eslint 9
+pnpm start         # dev: tsc --watch + electron
+```
 
-  ```bash
-  git pull
-  rm -r "/Applications/Upterm"*
-  npm run pack
-  ```
-2. If the bug is still present, [open an issue](issues/new).
-3. Write steps to reproduce the bug.
-4. Take some screenshots.
-5. Gather debug logs.
+Requires Node >=22, pnpm 9.12.3 (`corepack enable`).
 
- 5.1. Open developer tools (View -> Toggle Developer Tools).
+## Tests
 
- 5.2. Find Console.
+```bash
+pnpm run tsc          # typecheck
+pnpm run lint
+pnpm run unit-tests   # electron-mocha 13 + mocha 11 (legacy Output)
+# e2e: spectron removed -> playwright placeholder
+pnpm exec playwright test  # when electron playwright tests are added
+```
 
- 5.3. Copy the output and paste it into the issue.
+`test/e2e.ts` is skipped until playwright electron fixture is ready.
 
-Developing
-----------
+## Pull requests
 
-Clone the repo, then `npm start`. This will install dependencies, build,
-and run Electron. You may need additional packages, such as `libgconf2`
-([reference](https://github.com/railsware/upterm/issues/1320)).
+1. Fork + branch (`fix/…` / `feat/…`)
+2. `pnpm run compile && pnpm run lint` must be green (CI: ubuntu/mac/windows)
+3. Describe issue number + before/after
+4. Keep `pnpm-lock.yaml` frozen, no `package-lock.json`
 
-I have some important changes!
-------------------------------
+## Reporting bugs
 
-1. [Clone the repo](https://help.github.com/articles/importing-a-git-repository-using-the-command-line/).
-2. [Create a separate branch](https://github.com/Kunena/Kunena-Forum/wiki/Create-a-new-branch-with-git-and-manage-branches) (to prevent unrelated updates).
-3. Apply your changes.
-4. [Create a pull request](https://help.github.com/articles/creating-a-pull-request/).
-5. Describe what has been done.
+Check [issues](https://github.com/ixode0/stioc/issues) first, then open with:
+- `pnpm -v`, `node -v`, OS + `pnpm run compile` log
+- Steps to reproduce + screenshot
+- DevTools Console export (View → Toggle Developer Tools)
 
-Test
-----
+## Release
 
-* Install [selenium-standalone](https://github.com/vvo/selenium-standalone)
-* `selenium-standalone start`
-* `npm run test`
+Tag `v*` triggers `.github/workflows/release.yml` (`electron-builder --publish always`).
+
+## Security
+
+See `SECURITY.md`. Do not open public issues for `shell injection` / `openExternal` bypass.

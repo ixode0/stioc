@@ -47,7 +47,7 @@ export const OutputComponent: React.FC<Props> = ({ job }) => {
             console.warn("Failed to load SearchAddon", e);
         }
 
-        // WebGL renderer с fallback на Canvas / DOM
+        // WebGL renderer с fallback на DOM (canvas addon не используется — xterm 5.5 DOM renderer достаточно)
         try {
             const webglAddon = new WebglAddon();
             webglAddon.onContextLoss(() => {
@@ -56,20 +56,7 @@ export const OutputComponent: React.FC<Props> = ({ job }) => {
             terminal.loadAddon(webglAddon);
             webglAddonRef.current = webglAddon;
         } catch (e) {
-            console.warn("WebGL addon failed, fallback to canvas renderer", e);
-            try {
-                // @xterm/addon-canvas не в package.json — пробуем динамически,
-                // если отсутствует — остаёмся на дефолтном DOM renderer
-                // eslint-disable-next-line @typescript-eslint/no-require-imports
-                const canvasModule: any = require("@xterm/addon-canvas");
-                const CanvasAddon = canvasModule.CanvasAddon || canvasModule.default;
-                if (CanvasAddon) {
-                    const canvasAddon = new CanvasAddon();
-                    terminal.loadAddon(canvasAddon);
-                }
-            } catch {
-                // fallback — default renderer (DOM)
-            }
+            console.warn("WebGL addon failed, fallback to DOM renderer", e);
         }
 
         // Монтирование в DOM

@@ -1,0 +1,12 @@
+name: Bug report
+description: File a bug
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce, placeholder: "1. ... 2. ...", description: "Include pnpm -v, node -v, OS" }
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes: { label: Logs, description: "pnpm run compile / DevTools Console", render: shell }
