@@ -18,10 +18,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onChangeWorkingDirectory: (callback: (directory: string) => void): void => {
         ipcRenderer.on("change-working-directory", (_event: Electron.IpcRendererEvent, directory: string) => callback(directory));
     },
-    shareStart: (): Promise<string> => ipcRenderer.invoke("share-start"),
-    sharePush: (data: string): Promise<void> => ipcRenderer.invoke("share-push", data),
-    shareStop: (): Promise<void> => ipcRenderer.invoke("share-stop"),
-    shareStatus: (): Promise<{running:boolean,url?:string}> => ipcRenderer.invoke("share-status"),
+    shareStart: (opts?:{readOnly?:boolean}): Promise<{url:string,token:string,expiresAt:number}> => ipcRenderer.invoke("share-start", opts),
+    sharePush: (data: string, token?:string): Promise<void> => ipcRenderer.invoke("share-push", data, token),
+    shareStop: (token?:string): Promise<void> => ipcRenderer.invoke("share-stop", token),
+    shareStatus: (): Promise<{running:boolean,url?:string,list:any[]}> => ipcRenderer.invoke("share-status"),
+    shareRevoke: (token:string): Promise<void> => ipcRenderer.invoke("share-revoke", token),
+    shareList: (): Promise<any[]> => ipcRenderer.invoke("share-list"),
     onShareInput: (cb: (data:string)=>void) => ipcRenderer.on("share-input", (_e, d:string)=>cb(d)),
     beep: (): Promise<void> => ipcRenderer.invoke("beep"),
     getWindowBounds: (): Promise<Electron.Rectangle> => ipcRenderer.invoke("get-window-bounds"),

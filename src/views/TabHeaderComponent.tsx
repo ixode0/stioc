@@ -11,23 +11,25 @@ export interface Props {
 }
 
 export class TabHeaderComponent extends React.Component<Props, {}> {
-    private shareUrl?: string;
+    private share?: {url:string, token:string, expiresAt:number};
     private handleShare = async (e: React.MouseEvent) => {
         e.stopPropagation();
         const api: any = (window as any).electronAPI;
         if (!api?.shareStart) return;
         try {
-            if (this.shareUrl) {
-                await api.shareStop();
-                this.shareUrl = undefined;
-                (window as any).alert?.("Share stopped");
+            if (this.share) {
+                await api.shareStop(this.share.token);
+                this.share = undefined;
+                (window as any).alert?.("Share stopped — token revoked");
                 this.forceUpdate();
                 return;
             }
-            const url: string = await api.shareStart();
-            this.shareUrl = url;
-            try { await navigator.clipboard.writeText(url); } catch {}
-            (window as any).alert?.(`Share started: ${url}\n(Copied to clipboard)`);
+            const readOnly = e.shiftKey; // Shift+click = read-only
+            const res: {url:string, token:string, expiresAt:number} = await api.shareStart({readOnly});
+            this.share = res;
+            try { await navigator.clipboard.writeText(res.url); } catch {}
+            const ro = readOnly ? " (read-only, Shift)" : "";
+            (window as any).alert?.(`Share started${ro}: ${res.url}\nToken ${res.token.slice(0,8)}… expires ${new Date(res.expiresAt).toLocaleTimeString()}\nCopied! Each tab has own link.`);
             this.forceUpdate();
         } catch (err: any) {
             (window as any).alert?.("Share failed: " + (err?.message||err));
@@ -46,8 +48,8 @@ export class TabHeaderComponent extends React.Component<Props, {}> {
                 </span>
 
                 <span>⌘{this.props.position}</span>
-                <span onClick={this.handleShare} title={this.shareUrl ? `Stop share ${this.shareUrl}` : "Share terminal (one click)"} style={{marginLeft:6, cursor:"pointer", fontSize:12, opacity:0.8}}>
-                    {this.shareUrl ? "● Share" : "○ Share"}
+                <span onClick={this.handleShare} title={this.share ? `Stop ${this.share.url}` : "Share per-tab (Shift=read-only)"} style={{marginLeft:6, cursor:"pointer", fontSize:12, opacity:0.8}}>
+                    {this.share ? "● Share" : "○ Share"}
                 </span>
             </li>
         );

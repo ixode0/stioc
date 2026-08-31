@@ -151,27 +151,28 @@ ipcMain.on("set-title", (event: Electron.IpcMainEvent, title: string) => {
     }
 });
 
-// Share — real STIOC feature, no stub
-ipcMain.handle("share-start", async () => {
-    const url = await shareServer.start(
+// Share — per-session token + security (readOnly, ttl, maxClients)
+ipcMain.handle("share-start", async (_e, opts?: {readOnly?:boolean}) => {
+    const res = await shareServer.start(
         (listener) => {
             (shareServer as any)._listener = listener;
             return { dispose: () => { (shareServer as any)._listener = undefined; } };
         },
         (data) => {
-            // data from WS clients -> broadcast to all windows PTY via renderer event
             for (const w of BrowserWindow.getAllWindows()) w.webContents.send("share-input", data);
         },
+        opts,
     );
-    return url;
+    return res; // {url, token, expiresAt}
 });
-ipcMain.handle("share-push", (_e, data: string) => {
+ipcMain.handle("share-push", (_e, data: string, token?: string) => {
     try { (shareServer as any)._listener?.(data); } catch {}
-    // also broadcast via shareServer directly
-    try { shareServer.broadcast(data); } catch {}
+    try { shareServer.broadcast(data, token); } catch {}
 });
-ipcMain.handle("share-stop", async () => { await shareServer.stop(); });
-ipcMain.handle("share-status", () => ({ running: shareServer.isRunning(), url: shareServer.getUrl() }));
+ipcMain.handle("share-stop", async (_e, token?: string) => { await shareServer.stop(token); });
+ipcMain.handle("share-status", () => ({ running: shareServer.isRunning(), url: shareServer.getUrl(), list: shareServer.list() }));
+ipcMain.handle("share-revoke", async (_e, token:string) => { await shareServer.revoke(token); });
+ipcMain.handle("share-list", () => shareServer.list());
 // WindowService real resize/bounds via IPC (fix NeverObservable)
 ipcMain.handle("get-window-bounds", (e) => BrowserWindow.fromWebContents(e.sender)?.getBounds());
 ipcMain.on("window-bounds-changed", (e, bounds: Electron.Rectangle) => {
