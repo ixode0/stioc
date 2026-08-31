@@ -42,3 +42,4 @@ Temporary Items
 # pnpm only
 package-lock.json
 yarn.lock
+node-compile-cache/
