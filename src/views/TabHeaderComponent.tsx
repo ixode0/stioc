@@ -11,7 +11,7 @@ export interface Props {
 }
 
 export class TabHeaderComponent extends React.Component<Props, {}> {
-    private share?: {url:string, token:string, expiresAt:number};
+    private share?: {url:string, publicUrl?:string, token:string, expiresAt:number};
     private handleShare = async (e: React.MouseEvent) => {
         e.stopPropagation();
         const api: any = (window as any).electronAPI;
@@ -24,12 +24,14 @@ export class TabHeaderComponent extends React.Component<Props, {}> {
                 this.forceUpdate();
                 return;
             }
-            const readOnly = e.shiftKey; // Shift+click = read-only
-            const res: {url:string, token:string, expiresAt:number} = await api.shareStart({readOnly});
+            const readOnly = e.shiftKey;
+            const res: {url:string, publicUrl?:string, token:string, expiresAt:number} = await api.shareStart({readOnly});
             this.share = res;
-            try { await navigator.clipboard.writeText(res.url); } catch {}
+            const showUrl = res.publicUrl || res.url;
+            try { await navigator.clipboard.writeText(showUrl); } catch {}
             const ro = readOnly ? " (read-only, Shift)" : "";
-            (window as any).alert?.(`Share started${ro}: ${res.url}\nToken ${res.token.slice(0,8)}… expires ${new Date(res.expiresAt).toLocaleTimeString()}\nCopied! Each tab has own link.`);
+            const tunnelMsg = (res as any).publicUrl ? `\nPublic tunnel: ${res.publicUrl}` : `\n(Local only — tunnel offline, use ${res.url})`;
+            (window as any).alert?.(`Share started${ro}: ${showUrl}${tunnelMsg}\nToken ${res.token.slice(0,8)}… expires ${new Date(res.expiresAt).toLocaleTimeString()}\nCopied! Each tab own link, token required.`);
             this.forceUpdate();
         } catch (err: any) {
             (window as any).alert?.("Share failed: " + (err?.message||err));

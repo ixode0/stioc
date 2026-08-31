@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onChangeWorkingDirectory: (callback: (directory: string) => void): void => {
         ipcRenderer.on("change-working-directory", (_event: Electron.IpcRendererEvent, directory: string) => callback(directory));
     },
-    shareStart: (opts?:{readOnly?:boolean}): Promise<{url:string,token:string,expiresAt:number}> => ipcRenderer.invoke("share-start", opts),
+    shareStart: (opts?:{readOnly?:boolean}): Promise<{url:string,publicUrl?:string,token:string,expiresAt:number}> => ipcRenderer.invoke("share-start", opts),
     sharePush: (data: string, token?:string): Promise<void> => ipcRenderer.invoke("share-push", data, token),
     shareStop: (token?:string): Promise<void> => ipcRenderer.invoke("share-stop", token),
     shareStatus: (): Promise<{running:boolean,url?:string,list:any[]}> => ipcRenderer.invoke("share-status"),

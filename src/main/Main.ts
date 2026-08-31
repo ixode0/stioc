@@ -151,7 +151,7 @@ ipcMain.on("set-title", (event: Electron.IpcMainEvent, title: string) => {
     }
 });
 
-// Share — per-session token + security (readOnly, ttl, maxClients)
+// Share — per-session token + auto tunnel (Upterm heritage, updated 2026)
 ipcMain.handle("share-start", async (_e, opts?: {readOnly?:boolean}) => {
     const res = await shareServer.start(
         (listener) => {
@@ -163,7 +163,7 @@ ipcMain.handle("share-start", async (_e, opts?: {readOnly?:boolean}) => {
         },
         opts,
     );
-    return res; // {url, token, expiresAt}
+    return res; // {url, publicUrl, token, expiresAt}
 });
 ipcMain.handle("share-push", (_e, data: string, token?: string) => {
     try { (shareServer as any)._listener?.(data); } catch {}

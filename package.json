@@ -2,7 +2,7 @@
   "name": "upterm",
   "productName": "Upterm",
   "description": "A terminal emulator for the 21st century.",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "main": "compiled/src/main/Main.js",
   "author": "Volodymyr Shatskyi <shockone89@gmail.com>",
   "repository": {
@@ -37,6 +37,7 @@
     "fs-extra": "11.2.0",
     "immutable": "4.3.7",
     "klaw": "2.1.1",
+    "localtunnel": "2.0.2",
     "lodash": "4.17.21",
     "lucide-react": "^0.468.0",
     "mode-to-permissions": "0.0.2",

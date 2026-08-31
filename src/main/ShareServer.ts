@@ -5,6 +5,8 @@ import {WebSocketServer, WebSocket} from "ws";
 type Share = {
     token: string;
     url: string;
+    publicUrl?: string;
+    tunnel?: any;
     createdAt: number;
     expiresAt: number;
     maxClients: number;
@@ -93,9 +95,8 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
         return this.httpServer;
     }
 
-    async start(broadcast: (listener: (data: string) => void) => { dispose(): void }, writeToPty: (data: string) => void, opts?: { readOnly?: boolean; ttlMs?: number; maxClients?: number }): Promise<{url:string, token:string, expiresAt:number}> {
+    async start(broadcast: (listener: (data: string) => void) => { dispose(): void }, writeToPty: (data: string) => void, opts?: { readOnly?: boolean; ttlMs?: number; maxClients?: number }): Promise<{url:string, publicUrl?:string, token:string, expiresAt:number}> {
         const server = this.ensureServer();
-        // wait listening
         if (!server.listening) await new Promise<void>((r)=>server.once("listening", r));
         const token = crypto.randomBytes(16).toString("hex");
         const now = Date.now();
@@ -114,12 +115,24 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
         share.dispose = disp;
         const addr = server.address() as any;
         const host = addr.address === "127.0.0.1" ? "localhost" : addr.address;
-        const url = `http://${host}:${addr.port}/?token=${token}`;
-        share.url = url;
+        const localUrl = `http://${host}:${addr.port}/?token=${token}`;
+        share.url = localUrl;
         this.shares.set(token, share);
-        // auto expire
+        // auto tunnel public URL (Upterm heritage updated 2026) — fallback to local if offline
+        try {
+            // @ts-ignore localtunnel has no types
+            const lt = await import("localtunnel");
+            const tunnel: any = await (lt as any).default({port: addr.port, local_host: "127.0.0.1"});
+            // tunnel.url is https://xxx.loca.lt
+            share.tunnel = tunnel;
+            share.publicUrl = `${tunnel.url}/?token=${token}`;
+            tunnel.on("close", () => { share.publicUrl = undefined; share.tunnel = undefined; });
+            tunnel.on("error", () => { share.publicUrl = undefined; });
+        } catch (e) {
+            // no internet / lt fail -> keep local only
+        }
         setTimeout(() => this.revoke(token).catch(()=>{}), expiresAt - now).unref?.();
-        return {url, token, expiresAt};
+        return {url: share.publicUrl || localUrl, token, expiresAt, publicUrl: share.publicUrl} as any;
     }
 
     broadcast(data: string, token?: string) {
@@ -138,6 +151,8 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
         try { s.dispose?.dispose(); } catch {}
         for (const c of s.clients) try { c.close(1000, "revoked"); } catch {}
         s.clients.clear();
+        try { s.tunnel?.close?.(); } catch {}
+        s.tunnel = undefined; s.publicUrl = undefined;
         this.shares.delete(token);
         if (this.shares.size === 0) await this.stopIfIdle();
     }
@@ -153,12 +168,11 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
         return first?.url;
     }
 
-    list() { return [...this.shares.values()].map(s=>({token:s.token.slice(0,8)+'…', url:s.url, clients:s.clients.size, readOnly:s.readOnly, expiresAt:s.expiresAt})); }
+    list() { return [...this.shares.values()].map(s=>({token:s.token.slice(0,8)+'…', url:s.publicUrl||s.url, localUrl:s.url, publicUrl:s.publicUrl, clients:s.clients.size, readOnly:s.readOnly, expiresAt:s.expiresAt})); }
 
     async stop(token?: string): Promise<void> {
         if (token) { await this.revoke(token); return; }
         for (const t of [...this.shares.keys()]) await this.revoke(t);
-        // close server after all shares revoked
         await new Promise<void>((r)=> this.wss ? this.wss.close(()=>r()) : r());
         await new Promise<void>((r)=> this.httpServer ? this.httpServer.close(()=>r()) : r());
         this.wss = undefined; this.httpServer = undefined;
