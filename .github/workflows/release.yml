@@ -11,6 +11,8 @@ on:
 
 jobs:
   release:
+    permissions:
+      contents: write
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
