@@ -38,8 +38,16 @@ STIOC is an IDE in the world of terminals — terminal emulator + interactive sh
 
 ## Install
 
+### One-liner (Linux/macOS)
+```bash
+curl -fsSL https://raw.githubusercontent.com/ixode0/stioc/master/install.sh | bash
+# Debian/Ubuntu .deb instead of AppImage:
+curl -fsSL https://raw.githubusercontent.com/ixode0/stioc/master/install.sh | bash -s -- --deb
+```
+Installs the AppImage (or .deb) for your arch, a `.desktop` entry + icon on Linux, `STIOC.app` into `/Applications` on macOS. Uninstall: same script with `--uninstall`.
+
 ### From releases
-Download latest `STIOC-*.AppImage` / `STIOC-*.dmg` / `STIOC-*.exe` from [Releases](https://github.com/ixode0/stioc/releases)
+Download latest `STIOC-*.AppImage` / `STIOC-*.dmg` / `STIOC-Setup-*.exe` / `stioc_*.deb` from [Releases](https://github.com/ixode0/stioc/releases)
 
 ### From source (as regular user)
 ```bash
