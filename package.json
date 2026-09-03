@@ -2,7 +2,7 @@
   "name": "stioc",
   "productName": "STIOC",
   "description": "STIOC — Share Terminal In One Click. Modern terminal emulator with one-click sharing (Electron + xterm.js + Monaco).",
-  "version": "0.4.8",
+  "version": "0.4.11",
   "main": "compiled/src/main/Main.js",
   "author": "Volodymyr Shatskyi <shockone89@gmail.com>",
   "repository": {
@@ -132,7 +132,8 @@
       "**/*.node"
     ],
     "publish": {
-      "provider": "github"
+      "provider": "github",
+      "releaseType": "release"
     },
     "linux": {
       "icon": "icons",
