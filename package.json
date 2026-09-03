@@ -1,7 +1,7 @@
 {
-  "name": "upterm",
-  "productName": "Upterm",
-  "description": "A terminal emulator for the 21st century.",
+  "name": "stioc",
+  "productName": "STIOC",
+  "description": "STIOC — Share Terminal In One Click. Modern terminal emulator with one-click sharing (Electron + xterm.js + Monaco).",
   "version": "0.4.8",
   "main": "compiled/src/main/Main.js",
   "author": "Volodymyr Shatskyi <shockone89@gmail.com>",
@@ -20,7 +20,11 @@
     "terminal",
     "emulator",
     "shell",
-    "console"
+    "console",
+    "stioc",
+    "share-terminal",
+    "xterm",
+    "electron"
   ],
   "dependencies": {
     "@xterm/addon-search": "0.16.0",
@@ -35,7 +39,7 @@
     "dirStat": "0.0.2",
     "electron-updater": "6.6.2",
     "fs-extra": "11.2.0",
-    "immutable": "4.3.7",
+    "immutable": "4.3.8",
     "klaw": "2.1.1",
     "localtunnel": "2.0.2",
     "lodash": "4.17.21",
@@ -80,7 +84,7 @@
     "ts-node": "5.0.1",
     "typescript": "5.7.3",
     "typescript-eslint": "8.68.0",
-    "vite": "6.2.5",
+    "vite": "6.4.2",
     "vite-plugin-static-copy": "2.2.0",
     "vitest": "4.1.11"
   },
@@ -96,7 +100,7 @@
     "ui-tests": "NODE_ENV=test electron-mocha --require ts-node/register $(find test -name '*_spec.tsx')",
     "integration-tests": "pnpm exec playwright test --reporter=list",
     "update-dependencies": "ncu -u",
-    "lint": "eslint --config eslint.config.js src test",
+    "lint": "eslint --config eslint.config.mjs src test",
     "cleanup": "node --experimental-vm-modules -e \"require('fs').rmSync('compiled/src',{recursive:true,force:true})\"",
     "copy-html": "node --experimental-vm-modules -e \"require('fs').mkdirSync('compiled/src/views',{recursive:true}); require('fs').cpSync('src/views/index.html','compiled/src/views/index.html',{force:true})\"",
     "compile": "tsc --skipLibCheck && vite build",
@@ -105,7 +109,8 @@
   "license": "MIT",
   "pnpm": {
     "overrides": {
-      "tar": "^7.5.19"
+      "tar": "^7.5.19",
+      "axios": "^1.12.0"
     }
   },
   "build": {

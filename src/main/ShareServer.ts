@@ -28,10 +28,12 @@ export class ShareServer {
         this.httpServer = http.createServer((req, res) => {
             const url = new URL(req.url || "/", `http://${req.headers.host}`);
             if (url.pathname === "/ws") { res.writeHead(426); res.end(); return; }
-            // CORS + security headers
+            // CORS + security headers. No unsafe-inline for scripts: viewer uses
+            // only static HTML + a single inline script with no interpolation
+            // of user data (token badge is hex-only, sliced server-side).
             res.setHeader("X-Content-Type-Options", "nosniff");
             res.setHeader("X-Frame-Options", "DENY");
-            res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
+            res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'");
             res.setHeader("Access-Control-Allow-Origin", "null");
             if (url.pathname === "/health") { res.writeHead(200, {"Content-Type":"application/json"}); res.end(JSON.stringify({ok:true, shares:this.shares.size})); return; }
             // viewer requires token
@@ -70,11 +72,12 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
             const share = this.shares.get(token);
             if (!share || Date.now() > share.expiresAt) { ws.close(1008, "invalid token"); return; }
             if (share.clients.size >= share.maxClients) { ws.close(1013, "too many clients"); return; }
-            // origin check
+            // origin check: allow only same-origin (browser nav sends no Origin)
+            // and localhost dev. Block "null" (file://, data:, sandboxed iframe)
+            // and any foreign site to prevent CSRF-driven terminal input.
             const origin = (req.headers.origin || "") as string;
-            if (origin && !origin.startsWith("http://localhost") && !origin.startsWith("http://127.0.0.1")) {
-                // allow null/empty origin (direct open) but block foreign sites
-                const ok = origin === "null" || origin === "";
+            if (origin !== "") {
+                const ok = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
                 if (!ok) { ws.close(1008, "bad origin"); return; }
             }
             share.clients.add(ws);
@@ -85,7 +88,12 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
                 const now = Date.now();
                 if (now - lastReset > 1000) { msgCount = 0; lastReset = now; }
                 if (++msgCount > 30) return;
-                const text = msg.toString().slice(0, 1024);
+                // Cap length and allow only terminal-safe input: printable ASCII,
+                // \r \n \t \x7f and ESC (for arrows) — blocks binary/control junk
+                // before it reaches writeToPty.
+                let text = msg.toString().slice(0, 1024);
+                text = text.replace(/[^\x09\x0a\x0d\x1b\x7f\x20-\x7e]/g, "");
+                if (text.length === 0) return;
                 try { share.onInput?.(text); } catch {}
             });
             ws.on("close", () => share.clients.delete(ws));

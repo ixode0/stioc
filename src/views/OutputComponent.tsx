@@ -73,11 +73,8 @@ export const OutputComponent: React.FC<Props> = ({ job }) => {
         // Здесь дополнительно слушаем job "data" для возможного скролла или ресайза
         // но сам write идёт напрямую в terminal.buffer.
 
-        // Resize observer — если контейнер меняет размеры, синхронизируем с Job.dimensions
-        // (Job.resize вызывается из Session.dimensions сеттера)
-        const handleResize = () => {
-            // Ничего не делаем — Session управляет размерами через PTY
-        };
+        // Resize observer — размеры синхронизирует Session через PTY
+        // (Job.resize вызывается из Session.dimensions сеттера).
 
         return () => {
             // Не dispose терминал — он принадлежит Job (XtermOutput) и живёт до уничтожения Job

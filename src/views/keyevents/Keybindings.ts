@@ -3,7 +3,6 @@ import {error} from "../../utils/Common";
 import {SearchComponent} from "../SearchComponent";
 import {UserEvent} from "../../Interfaces";
 import {isModifierKey} from "../ViewUtils";
-import {services} from "../../services/index";
 import {ApplicationComponent} from "../ApplicationComponent";
 
 export type KeybindingType = {

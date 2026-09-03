@@ -46,7 +46,7 @@ function createWindow(): BrowserWindow {
             nodeIntegration: false,
         },
         // #420 Window title: initial title, updated via window-set-title IPC (session.title)
-        title: "Upterm",
+        title: "STIOC",
         // #1305 Native window controls macOS: hidden titleBarStyle with traffic lights inset; reversed class handles drag region
         titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
         // #341 Toggle Menubar: allow Alt to toggle menu bar on Linux/Win
@@ -107,15 +107,21 @@ ipcMain.handle("quit", () => {
 });
 
 ipcMain.handle("get-version", () => app.getVersion());
-const ALLOWED_EXTERNAL = /^(https?:\/\/|mailto:|file:\/\/\/)[^\s]*$/i;
+// Only http(s) and mailto are allowed. file:// is intentionally blocked:
+// shell.openExternal with file:// opens arbitrary local files in other apps.
+const ALLOWED_EXTERNAL = /^(https?:\/\/|mailto:)[^\s]*$/i;
 ipcMain.handle("open-external", (_event: Electron.IpcMainInvokeEvent, url: string) => {
     if (typeof url !== "string" || url.length > 2048) throw new Error("Invalid URL");
     const trimmed = url.trim();
     if (!ALLOWED_EXTERNAL.test(trimmed)) throw new Error(`Blocked external URL: ${trimmed.slice(0, 80)}`);
-    if (trimmed.startsWith("file://")) {
-        // Only allow file:// inside home or /tmp, block arbitrary system files
-        const { URL } = require("url");
-        try { new URL(trimmed); } catch { throw new Error("Invalid file URL"); }
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:" && parsed.protocol !== "mailto:") {
+            throw new Error("Blocked external URL protocol");
+        }
+    } catch (e) {
+        if ((e as Error).message === "Blocked external URL protocol") throw e;
+        throw new Error("Invalid URL");
     }
     return shell.openExternal(trimmed);
 });

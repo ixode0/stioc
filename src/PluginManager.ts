@@ -36,8 +36,18 @@ export class PluginManager {
 
 
 export async function loadAllPlugins(): Promise<void> {
-    const pluginsDirectory = Path.join(__dirname, "plugins");
-    const filePaths = await io.recursiveFilesIn(pluginsDirectory);
-
-    filePaths.map(require).map((module: any) => module.default);
+    // Renderer bundle (Vite/ESM) has no __dirname/require and no plugin dir:
+    // skip silently instead of crashing the UI.
+    try {
+        const dir = typeof __dirname !== "undefined" ? __dirname : "";
+        if (!dir || typeof window !== "undefined") return;
+        const pluginsDirectory = Path.join(dir, "plugins");
+        const filePaths = await io.recursiveFilesIn(pluginsDirectory);
+        await Promise.all(filePaths.map(async (p) => {
+            const mod = await import(/* @vite-ignore */ p);
+            return mod.default;
+        }));
+    } catch {
+        // No plugins dir in packaged renderer — not fatal.
+    }
 }

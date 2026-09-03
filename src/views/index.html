@@ -3,8 +3,8 @@
 
     <head>
         <meta charset="utf-8" />
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-eval'; connect-src 'self' https://api.github.com;" />
-        <title>Upterm</title>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://api.github.com;" />
+        <title>STIOC</title>
         <style>
             @import url('https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400i,700');
             @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -412,11 +412,11 @@
             }
 
             .session .prompt[data-mode=normal]:before {
-                content: url("../../../images/prompt-decoration.svg");
+                content: url("./prompt-decoration.svg");
             }
 
             .session .prompt[data-mode=history-search]:before {
-                content: url("../../../images/prompt-history-mode-decoration.svg");
+                content: url("./prompt-history-mode-decoration.svg");
             }
 
             .session .prompt-content {
@@ -522,11 +522,5 @@
     <body>
         <div id="react-entry-point"></div>
     </body>
-
-</html>
-
-<script>
-    require("../../src/monaco/Loader.js").requireMonaco(() => require("../../src/views/Main.js"));
-</script>
 
 </html>
