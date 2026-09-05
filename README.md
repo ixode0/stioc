@@ -8,9 +8,9 @@ STIOC is an IDE in the world of terminals — terminal emulator + interactive sh
 
 ![STIOC first look](docs/screenshots/main.png)
 
-Each tab header has an `○ Share` button + a visible `RO` checkbox (checked = **read-only**, safe default).
-Click `○ Share` = link with the checkbox mode; uncheck `RO` = **read-write**
-(red banner — everything typed runs on your machine; advanced one-shot: `Alt+click` = read-write once). The link looks like
+Each tab header has an `○ Share` button + a visible `Разрешить печатать (опасно)` checkbox (unchecked = **read-only**, safe default).
+Click `○ Share` = link with the checkbox mode; check the box = **read-write**
+(red banner — everything typed runs on your machine). The link looks like
 `https://xxx.loca.lt/?token=…` (or `http://localhost:PORT/?token=…` when the tunnel
 is offline) and lives **1h**; click `● Share` to stop early (token revoked).
 A wrong `?token=` shows **401 — invalid token**, an expired link shows **410 — link expired**.
@@ -73,7 +73,8 @@ pnpm run pack    # standalone AppImage/dmg
 Requires Node >=22, pnpm 9.
 
 ## Share terminal in one click
-- Click `○ Share` on a tab = link with the `RO` checkbox mode (**read-only** when checked, safe default); uncheck `RO` = **read-write** (typing runs here!; advanced: `Alt+click` = read-write once).
+- Click `○ Share` on a tab = link with the `Разрешить печатать (опасно)` checkbox mode (unchecked = **read-only**, safe default; checked = **read-write**, typing runs here!).
+- To change the mode of an active share: click `● Share` to stop (token revoked) → flip the checkbox → click `○ Share` again for a new link.
 - Link looks like `https://xxx.loca.lt/?token=…` (or `http://localhost:PORT/?token=…` offline) — `?token=` is required, keep it secret.
 - Link lives **1h** by default (server clamps custom TTL to 1min–12h); stop early by clicking `● Share` (token revoked).
 - Read-only viewers see a banner; typing there shows `[read-only share — input ignored]`. Blocked `file://` links and TTL clamps now alert instead of staying silent.

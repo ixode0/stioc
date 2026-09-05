@@ -57,7 +57,14 @@ export const VIEWER_JS = `(() => {
   if (!readOnly) {
     document.addEventListener('keydown', (e) => {
       if (ws.readyState !== 1) return;
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { ws.send(e.key); e.preventDefault(); }
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) { ws.send('\\x03'); e.preventDefault(); }
+      else if (e.key === 'Tab') { ws.send('\\t'); e.preventDefault(); }
+      else if (e.key === 'Escape') { ws.send('\\x1b'); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { ws.send('\\x1b[A'); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { ws.send('\\x1b[B'); e.preventDefault(); }
+      else if (e.key === 'ArrowRight') { ws.send('\\x1b[C'); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { ws.send('\\x1b[D'); e.preventDefault(); }
+      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { ws.send(e.key); e.preventDefault(); }
       else if (e.key === 'Enter') { ws.send('\\r'); e.preventDefault(); }
       else if (e.key === 'Backspace') { ws.send('\\x7f'); e.preventDefault(); }
     });

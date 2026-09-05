@@ -53,7 +53,7 @@ export class TabHeaderComponent extends React.Component<Props, State> {
     private timer?: any;
 
     componentDidMount() {
-        // Ticking countdown (30s). Auto-resets ●->○ when the link expires.
+        // Ticking countdown (15s). Auto-resets ●->○ when the link expires.
         this.timer = setInterval(() => {
             const now = Date.now();
             if (this.share && now > this.share.expiresAt) {
@@ -217,9 +217,7 @@ export class TabHeaderComponent extends React.Component<Props, State> {
     render() {
         const left = this.share ? minsLeft(this.share.expiresAt, this.state.now) : 0;
         const sharing = !!this.share;
-        const modeLabel = this.state.readOnly
-            ? "Только просмотр / View-only"
-            : "Можно печатать / Can type";
+        const modeLabel = "Разрешить печатать (опасно) / Allow typing (dangerous)";
         return (
             <li className="tab-header"
                 data-focused={this.props.isFocused}
@@ -244,10 +242,10 @@ export class TabHeaderComponent extends React.Component<Props, State> {
                     {sharing ? `● Share · осталось ${left} мин` : "○ Share"}
                 </button>
                 {!sharing && (
-                    <label title="Только просмотр — безопасно. «Можно печатать» выполняет команды здесь / View-only is safe. Can type runs commands here" style={{marginLeft: 8, cursor: "pointer", fontSize: 13, opacity: 1}} onClick={(ev) => ev.stopPropagation()}>
+                    <label title="Не отмечено = только просмотр (безопасно). Отметь «Разрешить печатать» — ввод выполняется здесь / Unchecked = view-only (safe). Check to allow typing — input runs here" style={{marginLeft: 8, cursor: "pointer", fontSize: 13, opacity: 1}} onClick={(ev) => ev.stopPropagation()}>
                         <input
                             type="checkbox"
-                            checked={this.state.readOnly}
+                            checked={!this.state.readOnly}
                             onChange={() => this.setState({readOnly: !this.state.readOnly})}
                             onClick={(ev) => ev.stopPropagation()}
                             style={{verticalAlign: "middle", marginRight: 6, width: 16, height: 16}}

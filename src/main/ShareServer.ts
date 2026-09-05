@@ -117,10 +117,10 @@ export class ShareServer {
                 if (now - lastReset > 1000) { msgCount = 0; lastReset = now; }
                 if (++msgCount > 30) return;
                 // Cap length and allow only terminal-safe input: printable ASCII,
-                // \r \n \t \x7f and ESC (for arrows) — blocks binary/control junk
+                // \r \n \t \x03 (Ctrl+C) \x7f and ESC (for arrows/Escape) — blocks binary/control junk
                 // before it reaches writeToPty.
                 let text = msg.toString().slice(0, 1024);
-                text = text.replace(/[^\x09\x0a\x0d\x1b\x7f\x20-\x7e]/g, "");
+                text = text.replace(/[^\x03\x09\x0a\x0d\x1b\x7f\x20-\x7e]/g, "");
                 if (text.length === 0) return;
                 try { share.onInput?.(text, share.token); } catch {}
             });
