@@ -28,13 +28,13 @@ export class ShareServer {
         this.httpServer = http.createServer((req, res) => {
             const url = new URL(req.url || "/", `http://${req.headers.host}`);
             if (url.pathname === "/ws") { res.writeHead(426); res.end(); return; }
-            // CORS + security headers. No unsafe-inline for scripts: viewer uses
-            // only static HTML + a single inline script with no interpolation
-            // of user data (token badge is hex-only, sliced server-side).
+            // CORS + security headers. Viewer needs its single inline script,
+            // so script-src allows 'unsafe-inline' (no user data interpolated —
+            // token badge is hex-only, sliced server-side). No ACAO header:
+            // viewer is same-origin, WS origin is checked per-share instead.
             res.setHeader("X-Content-Type-Options", "nosniff");
             res.setHeader("X-Frame-Options", "DENY");
-            res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'");
-            res.setHeader("Access-Control-Allow-Origin", "null");
+            res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'");
             if (url.pathname === "/health") { res.writeHead(200, {"Content-Type":"application/json"}); res.end(JSON.stringify({ok:true, shares:this.shares.size})); return; }
             // viewer requires token
             const token = url.searchParams.get("token") || "";

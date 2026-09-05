@@ -20,7 +20,9 @@ export const Link: React.FC<{absolutePath: string, children: any}> = ({
     title={target}
     onClick={() => {
       if (isHttp) {
-        (window as any).electronAPI?.openExternal(target.trim());
+        // Silent catch: no alert() popups for link failures (main rejects
+        // file:// etc. with an error; Menu.ts surfaces those where needed).
+        (window as any).electronAPI?.openExternal(target.trim())?.catch?.(() => {});
       }
     }}
   >{children}</span>;

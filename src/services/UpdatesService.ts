@@ -11,12 +11,17 @@ export class UpdatesService {
     private INTERVAL = 1000 * 60 * 60 * 12;
 
     constructor() {
-        if (process.env.NODE_ENV === "test") {
+        // Renderer may run without Node globals (sandbox) — bare `process`
+        // reference throws ReferenceError there, so guard with typeof.
+        const env = (typeof process !== "undefined" && (process as any)?.env)
+            ? (process as any).env.NODE_ENV
+            : undefined;
+        if (env === "test") {
             return;
         }
         // B3: update checks are prod-only (dev/test builds must not hit the API
         // nor trigger electron-updater).
-        if (process.env.NODE_ENV !== "production") {
+        if (env !== "production") {
             return;
         }
 
@@ -45,7 +50,10 @@ export class UpdatesService {
 
     checkForUpdatesAndNotify(): void {
         // Renderer delegates to main via IPC; main runs autoUpdater.
-        if (process.env.NODE_ENV !== "production") {
+        const env = (typeof process !== "undefined" && (process as any)?.env)
+            ? (process as any).env.NODE_ENV as string | undefined
+            : undefined;
+        if (env !== "production") {
             return;
         }
         try {

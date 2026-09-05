@@ -87,11 +87,16 @@ export function buildMenuTemplate(
                 {
                     label: "Toggle Developer Tools",
                     accelerator: getAcceleratorForAction(KeyboardAction.toggleDeveloperTools),
-                    // B1: DevTools menu only in dev. app.isPackaged comes from main;
-                    // process.env is unreliable in the packaged renderer.
-                    visible: (app as any)?.isPackaged === false,
+                    // B1: DevTools menu only in dev. Packaged state comes from main
+                    // via electronAPI.isPackaged() (async) — never from a sync
+                    // app.isPackaged prop (unreliable in the renderer). Default hidden;
+                    // refreshMenuDevToolsVisibility() below flips it once resolved.
+                    // Main also denies window-toggle-devtools IPC in packaged builds.
+                    visible: false,
                     click: () => {
-                        browserWindow.webContents.toggleDevTools();
+                        (window as any).electronAPI?.windowControls?.toggleDevTools?.()?.catch?.(() => {
+                            browserWindow.webContents.toggleDevTools();
+                        });
                     },
                 },
                 { type: "separator" },
@@ -181,7 +186,7 @@ export function buildMenuTemplate(
                     click: () => {
                         /* tslint:disable:no-unused-expression */
                         (window as any).electronAPI?.openExternal("https://github.com/ixode0/stioc")
-                            ?.catch?.((err: any) => (window as any).alert?.("Can't open link: " + (err?.message || err)));
+                            ?.catch?.(() => {});
                     },
                 },
                 {
@@ -189,10 +194,37 @@ export function buildMenuTemplate(
                     click: () => {
                         /* tslint:disable:no-unused-expression */
                         (window as any).electronAPI?.openExternal("https://github.com/ixode0/stioc/issues")
-                            ?.catch?.((err: any) => (window as any).alert?.("Can't open link: " + (err?.message || err)));
+                            ?.catch?.(() => {});
                     },
                 },
             ],
         },
     ];
+}
+
+// DevTools menu visibility is resolved async via electronAPI.isPackaged().
+// Call after building the menu (e.g. in Main.tsx) to unhide in dev only.
+export async function refreshMenuDevToolsVisibility(
+    menu: Electron.Menu,
+    isPackaged?: boolean,
+): Promise<void> {
+    try {
+        let packaged = isPackaged;
+        if (packaged === undefined) {
+            packaged = await (window as any).electronAPI?.isPackaged?.();
+        }
+        if (packaged === false) {
+            // find "Toggle Developer Tools" item and show it
+            const walk = (items: Electron.MenuItem[]): Electron.MenuItem | undefined => {
+                for (const it of items) {
+                    if (it.label === "Toggle Developer Tools") return it;
+                    const sub = (it as any)?.submenu?.items as Electron.MenuItem[] | undefined;
+                    if (sub) { const found = walk(sub); if (found) return found; }
+                }
+                return undefined;
+            };
+            const item = walk(menu.items);
+            if (item) (item as any).visible = true;
+        }
+    } catch {}
 }

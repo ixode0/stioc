@@ -4,6 +4,16 @@
 
 STIOC is an IDE in the world of terminals — terminal emulator + interactive shell with autocompletion, built for 2026. One click to share your terminal session.
 
+## Share in one click (first look)
+
+Each tab header has an `○ Share` button. Click = **read-only** link (safe default,
+viewers see a yellow `READ-ONLY share` banner and their keystrokes are ignored with
+`[read-only share — input ignored]`); uncheck `RO` or `Alt+click` = **read-write**
+(red banner — everything typed runs on your machine). The link looks like
+`https://xxx.loca.lt/?token=…` (or `http://localhost:PORT/?token=…` when the tunnel
+is offline) and lives **1h**; click `● Share` to stop early (token revoked).
+A wrong `?token=` shows **401 — invalid token**, an expired link shows **410 — link expired**.
+
 **Original project:** https://github.com/railsware/upterm — deprecated after maintainer Vlad Shatskyi passed away ([issue #1301](https://github.com/railsware/upterm/issues/1301)). This is a community revival.
 
 [![Build](https://github.com/ixode0/stioc/actions/workflows/build.yml/badge.svg)](https://github.com/ixode0/stioc/actions)
@@ -74,9 +84,20 @@ Requires Node >=22, pnpm 9.
 - [ ] Offline (no tunnel) → local URL works on localhost; `file://` open attempts show an error toast.
 
 ## Development
+
+Проверка (единый блок):
+
+```bash
+pnpm run tsc && pnpm run compile && pnpm exec playwright test
+# headless Linux (без дисплея):
+xvfb-run -a pnpm exec playwright test
+```
+
+e2e (`test/e2e.ts`, Playwright + Electron) запускаются локально с дисплеем;
+в CI (`.github/workflows/build.yml`) их пока нет — там только lint + tsc + vite + pack.
+
 ```bash
 pnpm install --ignore-scripts
-npx tsc --noEmit --skipLibCheck # should be EXIT 0
 pnpm run lint
 ```
 

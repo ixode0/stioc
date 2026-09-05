@@ -144,7 +144,7 @@ ipcMain.handle("open-external", (_event: Electron.IpcMainInvokeEvent, url: strin
     if (typeof url !== "string" || url.length > 2048) throw new Error("Invalid URL");
     const trimmed = url.trim();
     // Visible error instead of silence: file:// and other schemes are rejected
-    // with a message the renderer shows as a toast/alert (see Menu.ts catch).
+    // with an error the renderer may surface (TabHeader share flow alerts).
     if (/^file:/i.test(trimmed)) throw new Error(`Blocked file:// URL (use http(s)/mailto only): ${trimmed.slice(0, 80)}`);
     if (!ALLOWED_EXTERNAL.test(trimmed)) throw new Error(`Blocked external URL (use http(s)/mailto only): ${trimmed.slice(0, 80)}`);
     try {
@@ -257,7 +257,13 @@ ipcMain.handle("share-push", (_e, data: string, token?: string) => {
     const safeToken = sanitizeToken(token);
     try { shareServer.broadcast(capped, safeToken); } catch {}
 });
-ipcMain.handle("share-stop", async (_e, token?: string) => { await shareServer.stop(sanitizeToken(token)); });
+ipcMain.handle("share-stop", async (_e, token?: string) => {
+    // Never allow a missing/malformed token to revoke ALL shares (stop(undefined)
+    // tears down every share + server). Require a valid token like share-revoke.
+    const safe = sanitizeToken(token);
+    if (!safe) throw new Error("Invalid share token");
+    await shareServer.stop(safe);
+});
 ipcMain.handle("share-status", () => ({ running: shareServer.isRunning(), url: shareServer.getUrl(), list: shareServer.list() }));
 ipcMain.handle("share-revoke", async (_e, token: string) => {
     const safe = sanitizeToken(token);

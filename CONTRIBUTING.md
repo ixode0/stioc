@@ -14,15 +14,21 @@ Requires Node >=22, pnpm 9.12.3 (`corepack enable`).
 
 ## Tests
 
+Проверка (единый блок):
+
 ```bash
-pnpm run tsc          # typecheck
-pnpm run lint
-pnpm run unit-tests   # electron-mocha 13 + mocha 11 (legacy Output)
-# e2e: spectron removed -> playwright placeholder
-pnpm exec playwright test  # when electron playwright tests are added
+pnpm run tsc && pnpm run compile && pnpm exec playwright test
+# headless Linux (без дисплея):
+xvfb-run -a pnpm exec playwright test
 ```
 
-`test/e2e.ts` is skipped until playwright electron fixture is ready.
+- `pnpm run tsc` — typecheck (`tsc --noEmit`)
+- `pnpm run compile` — `tsc + vite build`
+- `pnpm exec playwright test` — e2e (`test/e2e.ts`, Playwright + Electron)
+- `pnpm run unit-tests` — electron-mocha (legacy Output)
+
+e2e запускаются локально с дисплеем; в CI (`.github/workflows/build.yml`)
+их пока нет — там только lint + tsc + vite + pack.
 
 ## Pull requests
 

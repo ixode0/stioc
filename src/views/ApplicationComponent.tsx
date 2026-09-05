@@ -20,9 +20,11 @@ type ApplicationState = {
 
 export class ApplicationComponent extends React.Component<{}, ApplicationState> {
     tabComponents!: TabComponent[];
-    // Share routing: token -> tab index owning the share (set via TabHeader onShareChange).
+    // Share routing: token -> tab id owning the share (set via TabHeader onShareChange).
+    // Tab id (stable) is used, not tab index (shifts on removeTab). Cleaned in
+    // removeTabFromState so closed tabs never receive viewer input/output.
     // Viewer input is routed by token to that tab's focused session; unknown tokens are dropped.
-    // PTY output fans out per-token via sharePush(data, token) so 2+ shares stay working.
+    // PTY output is routed per-job: each job pushes only to its owner tab's token.
     private shareTokens = new Map<string, number>();
 
     constructor(props: {}) {
@@ -59,9 +61,9 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
         api?.onShareInput?.((data: string, token?: string) => {
             try {
                 if (token) {
-                    const tabIndex = this.shareTokens.get(token);
-                    if (tabIndex === undefined) { try { console.warn(`[share] input with unknown token dropped (${String(token).slice(0,8)}…)`); } catch {} return; }
-                    const tab = this.state.tabs[tabIndex];
+                    const tabId = this.shareTokens.get(token);
+                    if (tabId === undefined) { try { console.warn(`[share] input with unknown token dropped (${String(token).slice(0,8)}…)`); } catch {} return; }
+                    const tab = this.state.tabs.find(t => t.id === tabId);
                     if (!tab) { try { console.warn(`[share] input for dead tab dropped`); } catch {} return; }
                     const session = services.sessions.get(tab.focusedSessionID);
                     session?.lastJob?.write(data);
@@ -70,22 +72,33 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
                 this.focusedSession.lastJob?.write(data);
             } catch {}
         });
-        // Share: broadcast PTY output to WS via main, fanned out per-token (C3).
-        // Each push carries its share token so ShareServer.broadcast routes to one
-        // share; with no active shares registered we send one legacy token-less push.
-        const pushToShares = (d: string) => {
+        // Share: route each job's PTY output only to its owner tab's token (C3).
+        // Broadcasting every job into every token leaked tab A's output to tab B's
+        // viewers. With no shares registered we send one legacy token-less push
+        // (ShareServer delivers it only when exactly one share exists).
+        const tokenForTab = (tabId: number): string | undefined => {
+            for (const [tok, id] of this.shareTokens.entries()) {
+                if (id === tabId) return tok;
+            }
+            return undefined;
+        };
+        const pushJobOutput = (job: {session?: {id?: unknown}}, d: string) => {
             try {
-                const tokens = [...this.shareTokens.keys()];
-                if (tokens.length === 0) { api?.sharePush?.(d).catch(()=>{}); return; }
-                for (const t of tokens) api?.sharePush?.(d, t).catch(()=>{});
+                if (this.shareTokens.size === 0) { api?.sharePush?.(d).catch(()=>{}); return; }
+                const sessionId = (job as any)?.session?.id;
+                const tab = this.state.tabs.find(t => t.sessionIDs.includes(sessionId));
+                if (!tab) return;
+                const token = tokenForTab(tab.id);
+                if (!token) return; // this tab is not shared — don't leak into other tabs' shares
+                api?.sharePush?.(d, token).catch(()=>{});
             } catch {}
         };
         services.jobs.onStart.subscribe((job) => {
             const out: any = (job as any).output;
-            if (out?.on) out.on("data", (d: string) => pushToShares(d));
+            if (out?.on) out.on("data", (d: string) => pushJobOutput(job, d));
             // also job-level data
             job.on("data", () => {
-                try { const txt = out?.toString?.()?.slice(-4000); if (txt) pushToShares(txt); } catch {}
+                try { const txt = out?.toString?.()?.slice(-4000); if (txt) pushJobOutput(job, txt); } catch {}
             });
         });
 
@@ -169,7 +182,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
                     key={tab.id}
                     position={index + 1}
                     activate={() => this.setState({focusedTabIndex: index})}
-                    onShareChange={(token, prevToken) => this.handleShareChange(index, token, prevToken)}
+                    onShareChange={(token, prevToken) => this.handleShareChange(tab.id, token, prevToken)}
                     closeHandler={(event: React.MouseEvent<HTMLSpanElement>) => {
                         services.sessions.close(this.state.tabs[index].sessionIDs);
                         event.stopPropagation();
@@ -276,16 +289,31 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
     }
 
     // Called by TabHeaderComponent when its per-tab share starts/stops.
-    private handleShareChange = (tabIndex: number, token: string | undefined, prevToken?: string) => {
+    // Keyed by stable tab id (not index — indices shift on removeTab).
+    private handleShareChange = (tabId: number, token: string | undefined, prevToken?: string) => {
         try {
             if (prevToken) this.shareTokens.delete(prevToken);
             // Remove any stale token previously bound to this tab.
-            for (const [tok, idx] of [...this.shareTokens.entries()]) {
-                if (idx === tabIndex && tok !== token) this.shareTokens.delete(tok);
+            for (const [tok, id] of [...this.shareTokens.entries()]) {
+                if (id === tabId && tok !== token) this.shareTokens.delete(tok);
             }
-            if (token) this.shareTokens.set(token, tabIndex);
+            if (token) this.shareTokens.set(token, tabId);
         } catch {}
     };
+
+    // Drop share routing for a closed tab so its tokens never resolve to a
+    // recycled index. Best-effort revoke server-side (tab close = share over).
+    private cleanupShareTokensForTab(tabId: number) {
+        try {
+            const api: any = (window as any).electronAPI;
+            for (const [tok, id] of [...this.shareTokens.entries()]) {
+                if (id === tabId) {
+                    this.shareTokens.delete(tok);
+                    try { api?.shareStop?.(tok)?.catch?.(()=>{}); } catch {}
+                }
+            }
+        } catch {}
+    }
 
     closeFocusedSession() {
         services.sessions.close(this.focusedSession.id);
@@ -347,6 +375,8 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
 
     private removeTabFromState(index: number): void {
         const state = this.cloneState();
+        const removed = state.tabs[index];
+        if (removed) this.cleanupShareTokensForTab(removed.id);
 
         state.tabs.splice(index, 1);
         state.focusedTabIndex = Math.max(0, index - 1);
