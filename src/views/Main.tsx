@@ -1,8 +1,16 @@
-process.env.PATH = "/usr/local/bin:" + process.env.PATH;
-process.env.NODE_ENV = process.env.NODE_ENV || "production";
-process.env.LANG = process.env.LANG || "en_US.UTF-8";
-process.env.COLORTERM = "truecolor";
-process.env.TERM = "xterm-256color";
+// B1 sandbox-compat: renderer env bootstrap must not throw when Node globals
+// are unavailable/restricted (sandboxed renderer). Best-effort only.
+try {
+    if (typeof process !== "undefined" && (process as any)?.env) {
+        process.env.PATH = "/usr/local/bin:" + process.env.PATH;
+        process.env.NODE_ENV = process.env.NODE_ENV || "production";
+        process.env.LANG = process.env.LANG || "en_US.UTF-8";
+        process.env.COLORTERM = "truecolor";
+        process.env.TERM = "xterm-256color";
+    }
+} catch {
+    // ignore: sandboxed renderer without writable process.env
+}
 
 import {handleUserEvent} from "./keyevents/Keybindings";
 import {handleMouseEvent} from "./mouseevents/MouseEvents";

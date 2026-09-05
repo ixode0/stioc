@@ -87,6 +87,9 @@ export function buildMenuTemplate(
                 {
                     label: "Toggle Developer Tools",
                     accelerator: getAcceleratorForAction(KeyboardAction.toggleDeveloperTools),
+                    // B1: DevTools menu only in dev. app.isPackaged comes from main;
+                    // process.env is unreliable in the packaged renderer.
+                    visible: (app as any)?.isPackaged === false,
                     click: () => {
                         browserWindow.webContents.toggleDevTools();
                     },
@@ -177,14 +180,16 @@ export function buildMenuTemplate(
                     label: "GitHub Repository",
                     click: () => {
                         /* tslint:disable:no-unused-expression */
-                        (window as any).electronAPI?.openExternal("http://l.rw.rw/upterm_repository");
+                        (window as any).electronAPI?.openExternal("https://github.com/ixode0/stioc")
+                            ?.catch?.((err: any) => (window as any).alert?.("Can't open link: " + (err?.message || err)));
                     },
                 },
                 {
                     label: "Leave Feedback",
                     click: () => {
                         /* tslint:disable:no-unused-expression */
-                        (window as any).electronAPI?.openExternal("http://l.rw.rw/upterm_leave_feedback");
+                        (window as any).electronAPI?.openExternal("https://github.com/ixode0/stioc/issues")
+                            ?.catch?.((err: any) => (window as any).alert?.("Can't open link: " + (err?.message || err)));
                     },
                 },
             ],

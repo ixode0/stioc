@@ -61,6 +61,18 @@ pnpm run pack    # standalone AppImage/dmg
 
 Requires Node >=22, pnpm 9.
 
+## Share terminal in one click
+- Click `○ Share` on a tab = **read-only** link (safe default); uncheck `RO` or `Alt+click` = **read-write** (typing runs here!).
+- Link looks like `https://xxx.loca.lt/?token=…` (or `http://localhost:PORT/?token=…` offline) — `?token=` is required, keep it secret.
+- Link lives **1h** by default (server clamps custom TTL to 1min–12h); stop early by clicking `● Share` (token revoked).
+- Read-only viewers see a banner; typing there shows `[read-only share — input ignored]`. Blocked `file://` links and TTL clamps now alert instead of staying silent.
+
+### Manual share checklist
+- [ ] 1 tab share → viewer sees live output; 2 tabs share → both viewers get only their own tab (no cross-leak).
+- [ ] Read-only link ignores keystrokes with a notice; read-write link types into the owning tab only.
+- [ ] Wrong/expired `?token=` → 401/410 page; killed share → viewer disconnects.
+- [ ] Offline (no tunnel) → local URL works on localhost; `file://` open attempts show an error toast.
+
 ## Development
 ```bash
 pnpm install --ignore-scripts

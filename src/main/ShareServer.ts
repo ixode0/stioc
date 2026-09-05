@@ -13,7 +13,7 @@ type Share = {
     readOnly: boolean;
     clients: Set<WebSocket>;
     onData?: (data: string) => void;
-    onInput?: (data: string) => void;
+    onInput?: (data: string, token: string) => void;
     dispose?: { dispose(): void };
 };
 
@@ -46,9 +46,12 @@ export class ShareServer {
                 res.writeHead(410, {"Content-Type":"text/html"}); res.end("<h1>410 — link expired</h1>"); return;
             }
             const ro = share.readOnly ? "(read-only)" : "(read-write)";
+            const roBanner = share.readOnly
+                ? `<div style="background:#3a2b00;color:#ffd666;font-size:12px;padding:6px 10px;border-bottom:1px solid #6b5200">READ-ONLY share — your keystrokes are ignored. Ask the owner for a read-write link.</div>`
+                : `<div style="background:#3a0000;color:#ff9d9d;font-size:12px;padding:6px 10px;border-bottom:1px solid #7a1f1f">READ-WRITE share — everything you type runs on the owner's machine.</div>`;
             const viewerHtml = `<!doctype html><html><head><meta charset="utf-8"><title>STIOC Share ${ro}</title>
 <style>body{margin:0;background:#0f1115;color:#eee;font-family:monospace} #term{padding:10px;white-space:pre-wrap;word-break:break-all} h1{font-size:13px;padding:10px;margin:0;background:#1a1d24;border-bottom:1px solid #2a2f3a} #badge{float:right;opacity:.7}</style>
-</head><body><h1>STIOC Shared Terminal ${ro} <span id="badge">${token.slice(0,8)}…</span></h1><div id="term"></div><script>
+</head><body><h1>STIOC Shared Terminal ${ro} <span id="badge">${token.slice(0,8)}…</span></h1>${roBanner}<div id="term"></div><script>
 const params=new URLSearchParams(location.search); const token=params.get('token')||'';
 const term=document.getElementById('term'); const proto=location.protocol==='https:'?'wss:':'ws:';
 const ws=new WebSocket(proto+'//'+location.host+'/ws?token='+encodeURIComponent(token));
@@ -72,18 +75,36 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
             const share = this.shares.get(token);
             if (!share || Date.now() > share.expiresAt) { ws.close(1008, "invalid token"); return; }
             if (share.clients.size >= share.maxClients) { ws.close(1013, "too many clients"); return; }
-            // origin check: allow only same-origin (browser nav sends no Origin)
-            // and localhost dev. Block "null" (file://, data:, sandboxed iframe)
-            // and any foreign site to prevent CSRF-driven terminal input.
+            // B2 origin check: allow only same-origin (browser nav sends no Origin)
+            // and localhost dev, plus the exact public tunnel viewer origin
+            // (Origin === share.publicUrl origin). No *.loca.lt wildcard — a
+            // broad suffix match would let any localtunnel site drive input.
             const origin = (req.headers.origin || "") as string;
             if (origin !== "") {
-                const ok = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+                let ok = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+                if (!ok) {
+                    try {
+                        const parsedOrigin = new URL(origin);
+                        if (share.publicUrl) {
+                            const publicOrigin = new URL(share.publicUrl).origin;
+                            ok = parsedOrigin.origin === publicOrigin;
+                        } else {
+                            ok = false;
+                        }
+                    } catch {
+                        ok = false;
+                    }
+                }
                 if (!ok) { ws.close(1008, "bad origin"); return; }
             }
             share.clients.add(ws);
             let msgCount = 0; let lastReset = Date.now();
             ws.on("message", (msg) => {
-                if (share.readOnly) return;
+                if (share.readOnly) {
+                    // Visible error instead of silence: tell the viewer input is ignored.
+                    try { if (ws.readyState === WebSocket.OPEN) ws.send("\r\n[read-only share — input ignored]\r\n"); } catch {}
+                    return;
+                }
                 // rate limit: 30 msg/sec
                 const now = Date.now();
                 if (now - lastReset > 1000) { msgCount = 0; lastReset = now; }
@@ -94,7 +115,7 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
                 let text = msg.toString().slice(0, 1024);
                 text = text.replace(/[^\x09\x0a\x0d\x1b\x7f\x20-\x7e]/g, "");
                 if (text.length === 0) return;
-                try { share.onInput?.(text); } catch {}
+                try { share.onInput?.(text, share.token); } catch {}
             });
             ws.on("close", () => share.clients.delete(ws));
             ws.on("error", () => share.clients.delete(ws));
@@ -103,16 +124,26 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
         return this.httpServer;
     }
 
-    async start(broadcast: (listener: (data: string) => void) => { dispose(): void }, writeToPty: (data: string) => void, opts?: { readOnly?: boolean; ttlMs?: number; maxClients?: number }): Promise<{url:string, publicUrl?:string, token:string, expiresAt:number}> {
+    async start(broadcast: (listener: (data: string) => void) => { dispose(): void }, writeToPty: (data: string, token: string) => void, opts?: { readOnly?: boolean; ttlMs?: number; maxClients?: number }): Promise<{url:string, publicUrl?:string, token:string, expiresAt:number}> {
         const server = this.ensureServer();
         if (!server.listening) await new Promise<void>((r)=>server.once("listening", r));
         const token = crypto.randomBytes(16).toString("hex");
         const now = Date.now();
-        const expiresAt = now + (opts?.ttlMs ?? this.defaultTtlMs);
+        // B2: clamp renderer-supplied values (defense in depth; Main also validates).
+        const rawTtl = opts?.ttlMs;
+        const ttlMs = (typeof rawTtl === "number" && Number.isFinite(rawTtl))
+            ? Math.min(Math.max(Math.floor(rawTtl), 60_000), 12 * 60 * 60 * 1000)
+            : this.defaultTtlMs;
+        const rawClients = opts?.maxClients;
+        const maxClients = (typeof rawClients === "number" && Number.isFinite(rawClients))
+            ? Math.min(Math.max(Math.floor(rawClients), 1), 20)
+            : 5;
+        const expiresAt = now + ttlMs;
         const share: Share = {
             token, url: "", createdAt: now, expiresAt,
-            maxClients: opts?.maxClients ?? 5,
-            readOnly: opts?.readOnly ?? false,
+            maxClients,
+            // B2: secure default — read-only unless the owner explicitly opts into writable.
+            readOnly: opts?.readOnly === false ? false : true,
             clients: new Set(),
         };
         share.onInput = writeToPty;
@@ -143,14 +174,22 @@ ${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
         return {url: share.publicUrl || localUrl, token, expiresAt, publicUrl: share.publicUrl} as any;
     }
 
+    // B2: token-routed broadcast. A missing token is honored ONLY when exactly one
+    // share exists (single-share UX: renderer pushes output without tracking tokens);
+    // with 2+ shares a token-less push is dropped with a warning to prevent
+    // cross-session leaks. Renderer fans out per-token (sharePush(data, token)),
+    // so multi-share stays working — the drop only catches legacy callers.
     broadcast(data: string, token?: string) {
         if (token) {
             const s = this.shares.get(token);
-            if (!s) return;
+            if (!s) { try { console.warn(`[share] broadcast: unknown token ${String(token).slice(0,8)}… dropped`); } catch {} return; }
             for (const c of s.clients) if (c.readyState === WebSocket.OPEN) c.send(data);
             return;
         }
-        for (const s of this.shares.values()) for (const c of s.clients) if (c.readyState === WebSocket.OPEN) c.send(data);
+        if (this.shares.size !== 1) { try { console.warn(`[share] broadcast: token-less push dropped (${this.shares.size} shares)`); } catch {} return; }
+        const only = this.shares.values().next().value as Share | undefined;
+        if (!only) return;
+        for (const c of only.clients) if (c.readyState === WebSocket.OPEN) c.send(data);
     }
 
     async revoke(token: string): Promise<void> {

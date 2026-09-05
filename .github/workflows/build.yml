@@ -49,8 +49,11 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
-      - name: Audit (fail on critical)
-        run: pnpm audit --audit-level=high || true
+      - name: Audit (non-blocking, high+; does not fail the build)
+        # B4: no `|| true` — audit failures are visible; explicitly non-blocking
+        # until the Electron 34 -> 39 migration (issue #2) lands.
+        continue-on-error: true
+        run: pnpm audit --audit-level=high
 
       - name: Typecheck
         run: pnpm run tsc
@@ -65,9 +68,10 @@ jobs:
 
       - name: Pack (electron-builder --dir, skip publish)
         if: matrix.os == 'ubuntu-latest'
-        run: pnpm run pack -- --dir
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # B4: Build on master must never publish — publish happens only in release.yml
+        # (which has contents:write). Without --publish never, electron-builder reads
+        # publish.provider=github and tries to upload assets with a read-only token -> 403.
+        run: pnpm run pack -- --dir --publish never
 
       - name: Upload dist artifacts (linux only)
         if: matrix.os == 'ubuntu-latest'

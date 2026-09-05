@@ -20,6 +20,10 @@ type ApplicationState = {
 
 export class ApplicationComponent extends React.Component<{}, ApplicationState> {
     tabComponents!: TabComponent[];
+    // Share routing: token -> tab index owning the share (set via TabHeader onShareChange).
+    // Viewer input is routed by token to that tab's focused session; unknown tokens are dropped.
+    // PTY output fans out per-token via sharePush(data, token) so 2+ shares stay working.
+    private shareTokens = new Map<string, number>();
 
     constructor(props: {}) {
         super(props);
@@ -48,18 +52,40 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
             this.focusedSession.directory = directory,
         );
 
-        // Share: WS input -> focused job PTY
+        // Share: WS input -> owning tab's session PTY (routed by token, M1).
+        // Unknown token => drop + warn (never leak into the focused session).
+        // Token-less (legacy single-share) => focused session as before.
         const api: any = (window as any).electronAPI;
-        api?.onShareInput?.((data: string) => {
-            try { this.focusedSession.lastJob?.write(data); } catch {}
+        api?.onShareInput?.((data: string, token?: string) => {
+            try {
+                if (token) {
+                    const tabIndex = this.shareTokens.get(token);
+                    if (tabIndex === undefined) { try { console.warn(`[share] input with unknown token dropped (${String(token).slice(0,8)}…)`); } catch {} return; }
+                    const tab = this.state.tabs[tabIndex];
+                    if (!tab) { try { console.warn(`[share] input for dead tab dropped`); } catch {} return; }
+                    const session = services.sessions.get(tab.focusedSessionID);
+                    session?.lastJob?.write(data);
+                    return;
+                }
+                this.focusedSession.lastJob?.write(data);
+            } catch {}
         });
-        // Share: broadcast PTY output to WS via main (real, no stub)
+        // Share: broadcast PTY output to WS via main, fanned out per-token (C3).
+        // Each push carries its share token so ShareServer.broadcast routes to one
+        // share; with no active shares registered we send one legacy token-less push.
+        const pushToShares = (d: string) => {
+            try {
+                const tokens = [...this.shareTokens.keys()];
+                if (tokens.length === 0) { api?.sharePush?.(d).catch(()=>{}); return; }
+                for (const t of tokens) api?.sharePush?.(d, t).catch(()=>{});
+            } catch {}
+        };
         services.jobs.onStart.subscribe((job) => {
             const out: any = (job as any).output;
-            if (out?.on) out.on("data", (d: string) => api?.sharePush?.(d).catch(()=>{}));
+            if (out?.on) out.on("data", (d: string) => pushToShares(d));
             // also job-level data
             job.on("data", () => {
-                try { const txt = out?.toString?.()?.slice(-4000); if (txt) api?.sharePush?.(txt).catch(()=>{}); } catch {}
+                try { const txt = out?.toString?.()?.slice(-4000); if (txt) pushToShares(txt); } catch {}
             });
         });
 
@@ -143,6 +169,7 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
                     key={tab.id}
                     position={index + 1}
                     activate={() => this.setState({focusedTabIndex: index})}
+                    onShareChange={(token, prevToken) => this.handleShareChange(index, token, prevToken)}
                     closeHandler={(event: React.MouseEvent<HTMLSpanElement>) => {
                         services.sessions.close(this.state.tabs[index].sessionIDs);
                         event.stopPropagation();
@@ -247,6 +274,18 @@ export class ApplicationComponent extends React.Component<{}, ApplicationState> 
     get focusedSession() {
         return services.sessions.get(this.state.tabs[this.state.focusedTabIndex].focusedSessionID);
     }
+
+    // Called by TabHeaderComponent when its per-tab share starts/stops.
+    private handleShareChange = (tabIndex: number, token: string | undefined, prevToken?: string) => {
+        try {
+            if (prevToken) this.shareTokens.delete(prevToken);
+            // Remove any stale token previously bound to this tab.
+            for (const [tok, idx] of [...this.shareTokens.entries()]) {
+                if (idx === tabIndex && tok !== token) this.shareTokens.delete(tok);
+            }
+            if (token) this.shareTokens.set(token, tabIndex);
+        } catch {}
+    };
 
     closeFocusedSession() {
         services.sessions.close(this.focusedSession.id);

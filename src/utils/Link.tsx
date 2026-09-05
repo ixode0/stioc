@@ -1,11 +1,27 @@
 import * as React from "react";
 // TODO: migrate remote -> electronAPI
+// B5: https-only links. main intentionally blocks file:// in openExternal
+// (arbitrary local files would open in other apps), so local paths are
+// rendered inert instead of producing a "Blocked external URL" dead click.
+// (Opening local files needs a separate shell.openPath IPC — not added here.)
+
+// Matches main's ALLOWED_EXTERNAL for http(s). mailto: is not linkified here.
+const HTTP_URL = /^https?:\/\/[^\s]*$/i;
 
 export const Link: React.FC<{absolutePath: string, children: any}> = ({
   absolutePath,
   children,
-}: any) => <span
-  style={{cursor: "pointer"} as any}
-  className="underlineOnHover"
-  onClick={() => (window as any).electronAPI?.openExternal(`file://${absolutePath}`)}
->{children}</span>;
+}: any) => {
+  const target = String(absolutePath ?? "");
+  const isHttp = HTTP_URL.test(target.trim()) && target.trim().length <= 2048;
+  return <span
+    style={{cursor: isHttp ? "pointer" : "default"} as any}
+    className={isHttp ? "underlineOnHover" : undefined}
+    title={target}
+    onClick={() => {
+      if (isHttp) {
+        (window as any).electronAPI?.openExternal(target.trim());
+      }
+    }}
+  >{children}</span>;
+};

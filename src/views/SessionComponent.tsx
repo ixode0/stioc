@@ -166,7 +166,7 @@ const ReleaseComponent = () => {
         return (
             <span
                 className="release-component-link"
-                onClick={() => (window as any).electronAPI?.openExternal("http://l.rw.rw/upterm_releases")}>
+                onClick={() => (window as any).electronAPI?.openExternal("https://github.com/ixode0/stioc/releases")}>
                 Download New Release
             </span>
         );
