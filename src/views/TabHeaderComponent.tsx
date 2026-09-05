@@ -32,23 +32,25 @@ export class TabHeaderComponent extends React.Component<Props, State> {
                 this.forceUpdate();
                 return;
             }
-            // M3: explicit read-only toggle (checkbox) instead of hidden Alt-only.
-            // Alt+click still forces read-write as a shortcut.
+            // RO checkbox is the single explicit share-mode control (safe default:
+            // checked = read-only). Alt+click stays as an advanced one-shot
+            // shortcut (documented only in tooltip/README), not the main path.
             const readOnly = e.altKey ? false : this.state.readOnly;
             const res: {url:string, publicUrl?:string, token:string, expiresAt:number} = await api.shareStart({readOnly});
             this.share = res;
             try { this.props.onShareChange?.(res.token); } catch {}
             const showUrl = res.publicUrl || res.url;
             const isFileUrl = showUrl.startsWith("file://");
+            let copied = false;
             try {
-                if (!isFileUrl) await navigator.clipboard.writeText(showUrl);
+                if (!isFileUrl) { await navigator.clipboard.writeText(showUrl); copied = true; }
                 else (window as any).alert?.("Share URL is file:// — copy it manually, clipboard is unreliable for file URLs.");
             } catch {}
+            // Alert shows only link + expiry + copied state. Token is NOT shown
+            // separately — it already lives inside ?token=, keep the link secret.
             const ro = readOnly ? " (read-only)" : " (READ-WRITE — everything typed runs here!)";
-            const tunnelMsg = (res as any).publicUrl ? `\nPublic tunnel: ${res.publicUrl}` : `\n(Local only — tunnel offline, use ${res.url})`;
-            // Visible TTL info + clamp warning instead of silence (main clamps 1min..12h, default 1h).
-            const ttlNote = `\nLink lives 1h, expires ${new Date(res.expiresAt).toLocaleTimeString()} (server clamps custom TTL to 1min..12h).`;
-            (window as any).alert?.(`Share started${ro}: ${showUrl}${tunnelMsg}${ttlNote}\nToken ${res.token.slice(0,8)}… — link contains ?token=, keep it secret.\nCopied! Each tab own link, token required.`);
+            const expiry = new Date(res.expiresAt).toLocaleTimeString();
+            (window as any).alert?.(`Share started${ro}:\n${showUrl}\nExpires ${expiry} (link lives 1h).${copied ? "\nCopied to clipboard!" : ""}`);
             this.forceUpdate();
         } catch (err: any) {
             (window as any).alert?.("Share failed: " + (err?.message||err));
@@ -67,17 +69,17 @@ export class TabHeaderComponent extends React.Component<Props, State> {
                 </span>
 
                 <span>⌘{this.props.position}</span>
-                <span onClick={this.handleShare} title={this.share ? `Stop ${this.share.url}` : "Share per-tab (click = read-only; Alt+click or checkbox = read-write)"} style={{marginLeft:6, cursor:"pointer", fontSize:12, opacity:0.8}}>
+                <span onClick={this.handleShare} title={this.share ? `Stop ${this.share.url}` : "Share this tab (RO checked = read-only, uncheck = read-write). Advanced: Alt+click = read-write once"} style={{marginLeft:6, cursor:"pointer", fontSize:12, opacity:0.8}}>
                     {this.share ? "● Share" : "○ Share"}
                 </span>
                 {!this.share && (
-                    <label title="Share mode: checked = read-only (safe default), unchecked = read-write" style={{marginLeft:4, cursor:"pointer", fontSize:11, opacity:0.8}} onClick={(ev) => ev.stopPropagation()}>
+                    <label title="Read-only share (safe default). Uncheck for read-write — everything typed runs here" style={{marginLeft:6, cursor:"pointer", fontSize:14, opacity:1}} onClick={(ev) => ev.stopPropagation()}>
                         <input
                             type="checkbox"
                             checked={this.state.readOnly}
                             onChange={() => this.setState({readOnly: !this.state.readOnly})}
                             onClick={(ev) => ev.stopPropagation()}
-                            style={{verticalAlign:"middle", marginRight:2}}
+                            style={{verticalAlign:"middle", marginRight:4, width:16, height:16}}
                         />
                         RO
                     </label>

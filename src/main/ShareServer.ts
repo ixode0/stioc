@@ -1,6 +1,7 @@
 import * as http from "http";
 import * as crypto from "crypto";
 import {WebSocketServer, WebSocket} from "ws";
+import {VIEWER_CSS, VIEWER_JS} from "./shareViewerAssets";
 
 type Share = {
     token: string;
@@ -28,13 +29,16 @@ export class ShareServer {
         this.httpServer = http.createServer((req, res) => {
             const url = new URL(req.url || "/", `http://${req.headers.host}`);
             if (url.pathname === "/ws") { res.writeHead(426); res.end(); return; }
-            // CORS + security headers. Viewer needs its single inline script,
-            // so script-src allows 'unsafe-inline' (no user data interpolated —
-            // token badge is hex-only, sliced server-side). No ACAO header:
-            // viewer is same-origin, WS origin is checked per-share instead.
+            // Viewer JS/CSS are external files (/viewer.js, /viewer.css), so
+            // CSP stays strict with no 'unsafe-inline': script-src 'self' only.
+            // No user data is interpolated into JS — read-only mode travels
+            // via <body data-ro>, token stays in ?token= and is hex-only.
+            // No ACAO header: viewer is same-origin, WS origin is checked per-share instead.
             res.setHeader("X-Content-Type-Options", "nosniff");
             res.setHeader("X-Frame-Options", "DENY");
-            res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'");
+            res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'");
+            if (url.pathname === "/viewer.js") { res.writeHead(200, {"Content-Type":"application/javascript; charset=utf-8"}); res.end(VIEWER_JS); return; }
+            if (url.pathname === "/viewer.css") { res.writeHead(200, {"Content-Type":"text/css; charset=utf-8"}); res.end(VIEWER_CSS); return; }
             if (url.pathname === "/health") { res.writeHead(200, {"Content-Type":"application/json"}); res.end(JSON.stringify({ok:true, shares:this.shares.size})); return; }
             // viewer requires token
             const token = url.searchParams.get("token") || "";
@@ -47,24 +51,11 @@ export class ShareServer {
             }
             const ro = share.readOnly ? "(read-only)" : "(read-write)";
             const roBanner = share.readOnly
-                ? `<div style="background:#3a2b00;color:#ffd666;font-size:12px;padding:6px 10px;border-bottom:1px solid #6b5200">READ-ONLY share — your keystrokes are ignored. Ask the owner for a read-write link.</div>`
-                : `<div style="background:#3a0000;color:#ff9d9d;font-size:12px;padding:6px 10px;border-bottom:1px solid #7a1f1f">READ-WRITE share — everything you type runs on the owner's machine.</div>`;
+                ? `<div class="ro-banner">READ-ONLY share — your keystrokes are ignored. Ask the owner for a read-write link.</div>`
+                : `<div class="rw-banner">READ-WRITE share — everything you type runs on the owner's machine.</div>`;
             const viewerHtml = `<!doctype html><html><head><meta charset="utf-8"><title>STIOC Share ${ro}</title>
-<style>body{margin:0;background:#0f1115;color:#eee;font-family:monospace} #term{padding:10px;white-space:pre-wrap;word-break:break-all} h1{font-size:13px;padding:10px;margin:0;background:#1a1d24;border-bottom:1px solid #2a2f3a} #badge{float:right;opacity:.7}</style>
-</head><body><h1>STIOC Shared Terminal ${ro} <span id="badge">${token.slice(0,8)}…</span></h1>${roBanner}<div id="term"></div><script>
-const params=new URLSearchParams(location.search); const token=params.get('token')||'';
-const term=document.getElementById('term'); const proto=location.protocol==='https:'?'wss:':'ws:';
-const ws=new WebSocket(proto+'//'+location.host+'/ws?token='+encodeURIComponent(token));
-ws.onmessage=e=>{ term.textContent+=e.data; window.scrollTo(0,document.body.scrollHeight); };
-ws.onopen=()=> term.textContent+='[connected ${ro}]\\n';
-ws.onclose=e=> term.textContent+='\\n[disconnected '+(e.reason||e.code)+']\\n';
-${share.readOnly ? "" : `document.addEventListener('keydown',e=>{
-  if(ws.readyState!==1) return;
-  if(e.key.length===1 && !e.ctrlKey && !e.metaKey) { ws.send(e.key); e.preventDefault(); }
-  else if(e.key==='Enter') { ws.send('\\r'); e.preventDefault(); }
-  else if(e.key==='Backspace') { ws.send('\\x7f'); e.preventDefault(); }
-});`}
-</script></body></html>`;
+<link rel="stylesheet" href="/viewer.css">
+</head><body data-ro="${share.readOnly ? "1" : "0"}"><h1>STIOC Shared Terminal ${ro} <span id="badge">${token.slice(0,8)}…</span></h1>${roBanner}<div id="term"></div><script src="/viewer.js"></script></body></html>`;
             res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
             res.end(viewerHtml);
         });

@@ -6,10 +6,11 @@ STIOC is an IDE in the world of terminals — terminal emulator + interactive sh
 
 ## Share in one click (first look)
 
-Each tab header has an `○ Share` button. Click = **read-only** link (safe default,
-viewers see a yellow `READ-ONLY share` banner and their keystrokes are ignored with
-`[read-only share — input ignored]`); uncheck `RO` or `Alt+click` = **read-write**
-(red banner — everything typed runs on your machine). The link looks like
+![STIOC first look](docs/screenshots/main.png)
+
+Each tab header has an `○ Share` button + a visible `RO` checkbox (checked = **read-only**, safe default).
+Click `○ Share` = link with the checkbox mode; uncheck `RO` = **read-write**
+(red banner — everything typed runs on your machine; advanced one-shot: `Alt+click` = read-write once). The link looks like
 `https://xxx.loca.lt/?token=…` (or `http://localhost:PORT/?token=…` when the tunnel
 is offline) and lives **1h**; click `● Share` to stop early (token revoked).
 A wrong `?token=` shows **401 — invalid token**, an expired link shows **410 — link expired**.
@@ -54,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/ixode0/stioc/master/install.sh | ba
 # Debian/Ubuntu .deb instead of AppImage:
 curl -fsSL https://raw.githubusercontent.com/ixode0/stioc/master/install.sh | bash -s -- --deb
 ```
-Installs the AppImage (or .deb) for your arch, a `.desktop` entry + icon on Linux, `STIOC.app` into `/Applications` on macOS. Uninstall: same script with `--uninstall`.
+Installs the AppImage (or .deb) x64 only (Linux prebuilt is x64 only, arm64 from source), a `.desktop` entry + icon on Linux, `STIOC.app` into `/Applications` on macOS. Uninstall: same script with `--uninstall`.
 
 ### From releases
 Download latest `STIOC-*.AppImage` / `STIOC-*.dmg` / `STIOC-Setup-*.exe` / `stioc_*.deb` from [Releases](https://github.com/ixode0/stioc/releases)
@@ -72,7 +73,7 @@ pnpm run pack    # standalone AppImage/dmg
 Requires Node >=22, pnpm 9.
 
 ## Share terminal in one click
-- Click `○ Share` on a tab = **read-only** link (safe default); uncheck `RO` or `Alt+click` = **read-write** (typing runs here!).
+- Click `○ Share` on a tab = link with the `RO` checkbox mode (**read-only** when checked, safe default); uncheck `RO` = **read-write** (typing runs here!; advanced: `Alt+click` = read-write once).
 - Link looks like `https://xxx.loca.lt/?token=…` (or `http://localhost:PORT/?token=…` offline) — `?token=` is required, keep it secret.
 - Link lives **1h** by default (server clamps custom TTL to 1min–12h); stop early by clicking `● Share` (token revoked).
 - Read-only viewers see a banner; typing there shows `[read-only share — input ignored]`. Blocked `file://` links and TTL clamps now alert instead of staying silent.
