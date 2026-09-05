@@ -40,22 +40,38 @@ export class ShareServer {
             if (url.pathname === "/viewer.js") { res.writeHead(200, {"Content-Type":"application/javascript; charset=utf-8"}); res.end(VIEWER_JS); return; }
             if (url.pathname === "/viewer.css") { res.writeHead(200, {"Content-Type":"text/css; charset=utf-8"}); res.end(VIEWER_CSS); return; }
             if (url.pathname === "/health") { res.writeHead(200, {"Content-Type":"application/json"}); res.end(JSON.stringify({ok:true, shares:this.shares.size})); return; }
+            // Lightweight per-share status for the viewer's ticking TTL + viewers badge.
+            // Token is hex-only; unknown token -> 401 like the viewer itself.
+            if (url.pathname === "/status") {
+                const stToken = url.searchParams.get("token") || "";
+                const stShare = this.shares.get(stToken);
+                if (!stToken || !stShare) {
+                    res.writeHead(401, {"Content-Type":"application/json"}); res.end(JSON.stringify({ok:false})); return;
+                }
+                res.writeHead(200, {"Content-Type":"application/json"});
+                res.end(JSON.stringify({ok:true, clients: stShare.clients.size, readOnly: stShare.readOnly, expiresAt: stShare.expiresAt}));
+                return;
+            }
             // viewer requires token
             const token = url.searchParams.get("token") || "";
             const share = this.shares.get(token);
             if (!token || !share) {
-                res.writeHead(401, {"Content-Type":"text/html"}); res.end("<h1>401 — invalid token</h1><p>Share link is per-session. Ask owner for new link.</p>"); return;
+                res.writeHead(401, {"Content-Type":"text/html; charset=utf-8"});
+                res.end("<!doctype html><html><head><meta charset=\"utf-8\"><title>401</title></head><body style=\"background:#0f1115;color:#eee;font-family:monospace;padding:20px\"><h1>401 — invalid link / неверная ссылка</h1><p>Ask the owner for a new link. / Попроси новую ссылку.</p></body></html>");
+                return;
             }
             if (Date.now() > share.expiresAt) {
-                res.writeHead(410, {"Content-Type":"text/html"}); res.end("<h1>410 — link expired</h1>"); return;
+                res.writeHead(410, {"Content-Type":"text/html; charset=utf-8"});
+                res.end("<!doctype html><html><head><meta charset=\"utf-8\"><title>410</title></head><body style=\"background:#0f1115;color:#eee;font-family:monospace;padding:20px\"><h1>410 — link expired / ссылка протухла</h1><p>Ask the owner for a new link. / Попроси новую ссылку.</p></body></html>");
+                return;
             }
-            const ro = share.readOnly ? "(read-only)" : "(read-write)";
+            const ro = share.readOnly ? "(read-only / только просмотр)" : "(read-write / можно печатать)";
             const roBanner = share.readOnly
-                ? `<div class="ro-banner">READ-ONLY share — your keystrokes are ignored. Ask the owner for a read-write link.</div>`
-                : `<div class="rw-banner">READ-WRITE share — everything you type runs on the owner's machine.</div>`;
+                ? `<div class="ro-banner">READ-ONLY / Только просмотр — your keystrokes are ignored / ввод игнорируется. Ask the owner for a read-write link / попроси ссылку «можно печатать».</div>`
+                : `<div class="rw-banner">READ-WRITE / Можно печатать — everything you type runs on the owner's machine / всё набранное выполняется у владельца.</div>`;
             const viewerHtml = `<!doctype html><html><head><meta charset="utf-8"><title>STIOC Share ${ro}</title>
 <link rel="stylesheet" href="/viewer.css">
-</head><body data-ro="${share.readOnly ? "1" : "0"}"><h1>STIOC Shared Terminal ${ro} <span id="badge">${token.slice(0,8)}…</span></h1>${roBanner}<div id="term"></div><script src="/viewer.js"></script></body></html>`;
+</head><body data-ro="${share.readOnly ? "1" : "0"}" data-expires="${share.expiresAt}"><h1>STIOC Shared Terminal ${ro} <span id="badge">${token.slice(0,8)}…</span></h1>${roBanner}<div id="meta"><span id="ttl"></span><span id="viewers"></span><span id="sub">${share.readOnly ? "Подписка: только просмотр / view-only — input ignored" : "Подписка: можно печатать / can type — input runs here"}</span></div><div id="term"></div><script src="/viewer.js"></script></body></html>`;
             res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
             res.end(viewerHtml);
         });
